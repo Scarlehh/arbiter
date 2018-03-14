@@ -19,17 +19,26 @@ MKBUILD = mkdir -p $(BUILD)
 BIN   = bin/
 BUILD = build/
 SRC   = src/
+TEST = test/
 
 # Object Files
 _OBJ =\
+	main.o \
 	resolve.o
 OBJ  = $(patsubst %,$(BUILD)%,$(_OBJ))
+
+# Test Files
+_CUNIT =\
+	resolve.o \
+	test_resolve.o
+CUNIT  = $(patsubst %,$(BUILD)%,$(_CUNIT))
 
 # Dependencies
 DEPS = $(OBJ:.o=.d)
 
 # Main
 MAIN = main
+MAIN_TEST = test
 
 # Build executable
 .PHONY: default
@@ -42,10 +51,28 @@ default: mkdir $(OBJ)
 $(BUILD)%.o: $(SRC)%.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -MMD -MF $(@:.o=.d) -o $@
 
+
+# Compile test
+.PHONY: $(MAIN_TEST)
+$(MAIN_TEST): default mkdir $(CUNIT)
+	$(CC) $(CFLAGS) $(CUNIT) $(LFLAGS) -lcunit $(LIBS) -o $(BIN)$(MAIN_TEST)
+
+-include $(DEPS)
+
+# Build test files
+$(BUILD)%.o: $(TEST)%.c
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -MMD -MF $(@:.o=.d) -o $@
+
+
 # Run program
 .PHONY: run
 run:
 	./$(BIN)$(MAIN)
+
+# Run program
+.PHONY: trun
+trun:
+	./$(BIN)$(MAIN_TEST)
 
 # Build directory structure
 .PHONY: mkdir
