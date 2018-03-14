@@ -9,7 +9,8 @@ LFLAGS  = \
 LIBS = -lcrypto -lpthread -lxml2 -lgssapi_krb5 -lkrb5
 INCLUDES = \
 	-D_GNU_SOURCE \
-	-I /usr/include/libxml2
+	-I /usr/include/libxml2 \
+	-I include
 
 MKBIN   = mkdir -p $(BIN)
 MKBUILD = mkdir -p $(BUILD)
