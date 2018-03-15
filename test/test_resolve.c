@@ -28,20 +28,138 @@
 #include "resolve.h"
 #include "CUnit/Basic.h"
 
-int setup(void)
-{
+/* return type of gai_strerror */
+#define IRS_GAISTRERROR_RETURN_T const char *
+
+/* Define to the buffer length type used by getnameinfo(3). */
+#define IRS_GETNAMEINFO_BUFLEN_T socklen_t
+
+/* Define to the flags type used by getnameinfo(3). */
+#define IRS_GETNAMEINFO_FLAGS_T int
+
+/* Define to the sockaddr length type used by getnameinfo(3). */
+#define IRS_GETNAMEINFO_SOCKLEN_T socklen_t
+
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#include <netinet/in.h>
+
+#include <arpa/inet.h>
+
+#include <netdb.h>
+#include <unistd.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <isc/base64.h>
+#include <isc/buffer.h>
+#include <isc/commandline.h>
+#include <isc/lib.h>
+#include <isc/mem.h>
+#include <isc/print.h>
+#include <isc/sockaddr.h>
+#include <isc/util.h>
+#include <isc/app.h>
+#include <isc/task.h>
+#include <isc/socket.h>
+#include <isc/timer.h>
+
+#include <irs/resconf.h>
+#include <irs/netdb.h>
+
+#include <dns/client.h>
+#include <dns/fixedname.h>
+#include <dns/keyvalues.h>
+#include <dns/lib.h>
+#include <dns/name.h>
+#include <dns/rdata.h>
+#include <dns/rdataset.h>
+#include <dns/rdatastruct.h>
+#include <dns/rdatatype.h>
+#include <dns/result.h>
+#include <dns/secalg.h>
+
+#include <dst/dst.h>
+
+static isc_mem_t *mctx = NULL;
+static isc_appctx_t *actx = NULL;
+static isc_taskmgr_t *taskmgr = NULL;
+static isc_socketmgr_t *socketmgr = NULL;
+static isc_timermgr_t *timermgr = NULL;
+static dns_client_t *client = NULL;
+static isc_sockaddr_t *addr4 = NULL, *addr6 = NULL;
+
+int setup(void) {
+	isc_result_t result;
+	isc_lib_register();
+	result = dns_lib_init();
+	if (result != ISC_R_SUCCESS) {
+		fprintf(stderr, "dns_lib_init failed: %u\n", result);
+		return -1;
+	}
+
+	result = create_dnsclient(&mctx, &actx, &taskmgr, &socketmgr,
+										   &timermgr, &client, addr4, addr6);
+	if (result != ISC_R_SUCCESS) {
+		fprintf(stderr, "create_dnsclient failed: %u\n", result);
+		return -1;
+	}
+
 	return 0;
 }
 
-int teardown(void)
-{
+int teardown(void) {
+	dns_client_destroy(&client);
+
+	if (taskmgr != NULL)
+		isc_taskmgr_destroy(&taskmgr);
+	if (timermgr != NULL)
+		isc_timermgr_destroy(&timermgr);
+	if (socketmgr != NULL)
+		isc_socketmgr_destroy(&socketmgr);
+	if (actx != NULL)
+		isc_appctx_destroy(&actx);
+	isc_mem_detach(&mctx);
+
+	dns_lib_shutdown();
+
 	return 0;
 }
 
-void test(void)
-{
-	CU_PASS("Test!")
+void test_setup_defnameserver(void) {
+	isc_result_t result = set_defserver(mctx, client);
+	CU_ASSERT(result == ISC_R_SUCCESS);
+
+	result = dns_client_clearservers(client, dns_rdataclass_in, NULL);
+	CU_ASSERT(result == ISC_R_SUCCESS);
 }
+
+void test_setup_successful_nameserver(void) {
+	isc_result_t result = addserver(client, "127.0.0.1", "54", NULL);
+	CU_ASSERT(result == ISC_R_SUCCESS);
+
+	result = dns_client_clearservers(client, dns_rdataclass_in, NULL);
+	CU_ASSERT(result == ISC_R_SUCCESS);
+}
+
+void test_setup_two_nameservers_should_exist_error(void) {
+	isc_result_t result = set_defserver(mctx, client);
+	CU_ASSERT(result == ISC_R_SUCCESS);
+	result = addserver(client, "127.0.0.1", "54", NULL);
+	CU_ASSERT(result == ISC_R_EXISTS);
+
+	result = dns_client_clearservers(client, dns_rdataclass_in, NULL);
+	CU_ASSERT(result == ISC_R_SUCCESS);
+}
+
+void test_setup_invalid_nameserver_ip_should_not_found(void) {
+	isc_result_t result = addserver(client, "localhost", "54", NULL);
+	CU_ASSERT(result == 8);
+}
+
 
 /* The main() function for setting up and running the tests.
  * Returns a CUE_SUCCESS on successful running, another
@@ -55,19 +173,27 @@ int main()
 	if (CUE_SUCCESS != CU_initialize_registry())
 		return CU_get_error();
 
-	// add a suite to the registry
-	pSuite = CU_add_suite("Suite_1", setup, teardown);
+	// Nameserver Suite
+	pSuite = CU_add_suite("Setting up nameserver", setup, teardown);
 	if (NULL == pSuite) {
 		CU_cleanup_registry();
 		return CU_get_error();
 	}
-
-	// add the tests to the suite
-	if (NULL == CU_add_test(pSuite, "testing", test))
-		{
-			CU_cleanup_registry();
-			return CU_get_error();
-		}
+	if ((NULL == CU_add_test(pSuite,
+							 "Test setup default nameserver",
+							 test_setup_defnameserver)) ||
+		(NULL == CU_add_test(pSuite,
+							 "Test setup external nameserver successfully",
+							 test_setup_successful_nameserver)) ||
+		(NULL == CU_add_test(pSuite,
+							 "Test adding two nameservers gives exists error",
+							 test_setup_two_nameservers_should_exist_error)) ||
+		(NULL == CU_add_test(pSuite,
+							 "Test nameserver with invalid ip gives not found",
+							 test_setup_invalid_nameserver_ip_should_not_found))) {
+		CU_cleanup_registry();
+		return CU_get_error();
+	}
 
 	/* Run all tests using the CUnit Basic interface */
 	CU_basic_set_mode(CU_BRM_VERBOSE);
