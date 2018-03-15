@@ -67,7 +67,48 @@
 
 #include <dst/dst.h>
 
-isc_result_t printdata(dns_rdataset_t *rdataset, dns_name_t *owner) {
+isc_result_t
+create_dnsclient(isc_mem_t **mctx, isc_appctx_t **actx,
+				 isc_taskmgr_t **taskmgr, isc_socketmgr_t **socketmgr,
+				 isc_timermgr_t **timermgr, dns_client_t **client,
+				 isc_sockaddr_t *addr4, isc_sockaddr_t *addr6) {
+	isc_result_t result;
+	unsigned int clientopt;
+	result = isc_mem_create(0, 0, mctx);
+	if (result != ISC_R_SUCCESS) {
+		fprintf(stderr, "failed to crate mctx\n");
+		exit(1);
+	}
+
+	result = isc_appctx_create(*mctx, actx);
+	if (result != ISC_R_SUCCESS)
+		return result;
+	result = isc_app_ctxstart(*actx);
+	if (result != ISC_R_SUCCESS)
+		return result;
+	result = isc_taskmgr_createinctx(*mctx, *actx, 1, 0, taskmgr);
+	if (result != ISC_R_SUCCESS)
+		return result;
+	result = isc_socketmgr_createinctx(*mctx, *actx, socketmgr);
+	if (result != ISC_R_SUCCESS)
+		return result;
+	result = isc_timermgr_createinctx(*mctx, *actx, timermgr);
+	if (result != ISC_R_SUCCESS)
+		return result;
+
+	clientopt = 0;
+	result = dns_client_createx2(*mctx, *actx, *taskmgr, *socketmgr, *timermgr,
+								 clientopt, client, addr4, addr6);
+	if (result != ISC_R_SUCCESS) {
+		fprintf(stderr, "dns_client_create failed: %u, %s\n", result,
+			isc_result_totext(result));
+		exit(1);
+	}
+	return result;
+}
+
+isc_result_t
+printdata(dns_rdataset_t *rdataset, dns_name_t *owner) {
     isc_buffer_t target;
     isc_result_t result;
     isc_region_t r;
@@ -90,8 +131,9 @@ isc_result_t printdata(dns_rdataset_t *rdataset, dns_name_t *owner) {
     return (ISC_R_SUCCESS);
 }
 
-void set_key(dns_client_t *client, char *keynamestr, char *keystr,
-			 isc_boolean_t is_sep, isc_mem_t **mctxp, char *algname)
+void
+set_key(dns_client_t *client, char *keynamestr, char *keystr,
+		isc_boolean_t is_sep, isc_mem_t **mctxp, char *algname)
 {
     isc_result_t result;
     dns_fixedname_t fkeyname;
@@ -126,10 +168,10 @@ void set_key(dns_client_t *client, char *keynamestr, char *keystr,
 
     keystruct.common.rdclass = dns_rdataclass_in;
     keystruct.common.rdtype = dns_rdatatype_dnskey;
-    keystruct.flags = DNS_KEYOWNER_ZONE; /* fixed */
+    keystruct.flags = DNS_KEYOWNER_ZONE;
     if (is_sep)
         keystruct.flags |= DNS_KEYFLAG_KSK;
-    keystruct.protocol = DNS_KEYPROTO_DNSSEC; /* fixed */
+    keystruct.protocol = DNS_KEYPROTO_DNSSEC;
     keystruct.algorithm = alg;
 
     isc_buffer_init(&keydatabuf, keydata, sizeof(keydata));
@@ -169,8 +211,33 @@ void set_key(dns_client_t *client, char *keynamestr, char *keystr,
     }
 }
 
-void addserver(dns_client_t *client, const char *addrstr, const char *port,
-			   const char *name_space)
+void
+set_defserver(isc_mem_t *mctx, dns_client_t *client) {
+	isc_result_t result;
+	irs_resconf_t *resconf = NULL;
+	isc_sockaddrlist_t *nameservers;
+
+	result = irs_resconf_load(mctx, "/etc/resolv.conf", &resconf);
+	if (result != ISC_R_SUCCESS && result != ISC_R_FILENOTFOUND) {
+		fprintf(stderr, "irs_resconf_load failed: %u\n",
+				result);
+		exit(1);
+	}
+	nameservers = irs_resconf_getnameservers(resconf);
+	result = dns_client_setservers(client, dns_rdataclass_in,
+								   NULL, nameservers);
+	if (result != ISC_R_SUCCESS) {
+		irs_resconf_destroy(&resconf);
+		fprintf(stderr, "dns_client_setservers failed: %u\n",
+				result);
+		exit(1);
+	}
+	irs_resconf_destroy(&resconf);
+}
+
+void
+addserver(dns_client_t *client, const char *addrstr, const char *port,
+		  const char *name_space)
 {
     struct addrinfo hints, *res;
     int gaierror;

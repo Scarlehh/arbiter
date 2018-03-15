@@ -76,33 +76,19 @@ main(int argc, char *argv[]) {
 	char *altserver = NULL;
 	char *altserveraddr = NULL;
 	char *altservername = NULL;
-	dns_client_t *client = NULL;
 	char *keynamestr = NULL;
 	char *keystr = NULL;
 	isc_result_t result;
-	isc_buffer_t b;
-	dns_fixedname_t qname0;
-	unsigned int namelen;
-	dns_name_t *qname, *name;
 	dns_rdatatype_t type = dns_rdatatype_a;
-	dns_rdataset_t *rdataset;
-	dns_namelist_t namelist;
-	isc_mem_t *keymctx = NULL;
-	unsigned int clientopt, resopt;
 	isc_boolean_t is_sep = ISC_FALSE;
 	const char *port = "53";
-	isc_mem_t *mctx = NULL;
-	isc_appctx_t *actx = NULL;
-	isc_taskmgr_t *taskmgr = NULL;
-	isc_socketmgr_t *socketmgr = NULL;
-	isc_timermgr_t *timermgr = NULL;
 	struct in_addr in4;
 	struct in6_addr in6;
 	isc_sockaddr_t a4, a6;
 	isc_sockaddr_t *addr4 = NULL, *addr6 = NULL;
 
 	while ((ch = isc_commandline_parse(argc, argv,
-					   "a:b:es:t:k:K:p:S:")) != -1) {
+									   "a:b:es:t:k:K:p:S:")) != -1) {
 		switch (ch) {
 		case 't':
 			tr.base = isc_commandline_argument;
@@ -120,7 +106,7 @@ main(int argc, char *argv[]) {
 			break;
 		case 'b':
 			if (inet_pton(AF_INET,
-				      isc_commandline_argument, &in4) == 1) {
+						  isc_commandline_argument, &in4) == 1) {
 				if (addr4 != NULL) {
 					fprintf(stderr, "only one local "
 							"address per family "
@@ -130,8 +116,8 @@ main(int argc, char *argv[]) {
 				isc_sockaddr_fromin(&a4, &in4, 0);
 				addr4 = &a4;
 			} else if (inet_pton(AF_INET6,
-					     isc_commandline_argument,
-					     &in6) == 1) {
+								 isc_commandline_argument,
+								 &in6) == 1) {
 				if (addr6 != NULL) {
 					fprintf(stderr, "only one local "
 							"address per family "
@@ -200,6 +186,7 @@ main(int argc, char *argv[]) {
 		altserveraddr = cp + 1;
 	}
 
+	// Register DNS library
 	isc_lib_register();
 	result = dns_lib_init();
 	if (result != ISC_R_SUCCESS) {
@@ -207,67 +194,32 @@ main(int argc, char *argv[]) {
 		exit(1);
 	}
 
-	result = isc_mem_create(0, 0, &mctx);
+	// Set up DNS client
+	isc_mem_t *mctx = NULL;
+	isc_appctx_t *actx = NULL;
+	isc_taskmgr_t *taskmgr = NULL;
+	isc_socketmgr_t *socketmgr = NULL;
+	isc_timermgr_t *timermgr = NULL;
+	dns_client_t *client = NULL;
+	result = create_dnsclient(&mctx, &actx, &taskmgr, &socketmgr, &timermgr,
+							  &client, addr4, addr6);
 	if (result != ISC_R_SUCCESS) {
-		fprintf(stderr, "failed to crate mctx\n");
-		exit(1);
+		goto cleanup;
 	}
 
-	result = isc_appctx_create(mctx, &actx);
-	if (result != ISC_R_SUCCESS)
-		goto cleanup;
-	result = isc_app_ctxstart(actx);
-	if (result != ISC_R_SUCCESS)
-		goto cleanup;
-	result = isc_taskmgr_createinctx(mctx, actx, 1, 0, &taskmgr);
-	if (result != ISC_R_SUCCESS)
-		goto cleanup;
-	result = isc_socketmgr_createinctx(mctx, actx, &socketmgr);
-	if (result != ISC_R_SUCCESS)
-		goto cleanup;
-	result = isc_timermgr_createinctx(mctx, actx, &timermgr);
-	if (result != ISC_R_SUCCESS)
-		goto cleanup;
-
-	clientopt = 0;
-	result = dns_client_createx2(mctx, actx, taskmgr, socketmgr, timermgr,
-				    clientopt, &client, addr4, addr6);
-	if (result != ISC_R_SUCCESS) {
-		fprintf(stderr, "dns_client_create failed: %u, %s\n", result,
-			isc_result_totext(result));
-		exit(1);
-	}
-
-	/* Set the nameserver */
+	// Set the nameserver
 	if (server == NULL) {
-		irs_resconf_t *resconf = NULL;
-		isc_sockaddrlist_t *nameservers;
-
-		result = irs_resconf_load(mctx, "/etc/resolv.conf", &resconf);
-		if (result != ISC_R_SUCCESS && result != ISC_R_FILENOTFOUND) {
-			fprintf(stderr, "irs_resconf_load failed: %u\n",
-				result);
-			exit(1);
-		}
-		nameservers = irs_resconf_getnameservers(resconf);
-		result = dns_client_setservers(client, dns_rdataclass_in,
-					       NULL, nameservers);
-		if (result != ISC_R_SUCCESS) {
-			irs_resconf_destroy(&resconf);
-			fprintf(stderr, "dns_client_setservers failed: %u\n",
-				result);
-			exit(1);
-		}
-		irs_resconf_destroy(&resconf);
+		set_defserver(mctx, client);
 	} else {
 		addserver(client, server, port, NULL);
 	}
 
-	/* Set the alternate nameserver (when specified) */
+	// Set the alternate nameserver (when specified)
 	if (altserver != NULL)
 		addserver(client, altserveraddr, port, altservername);
 
-	/* Install DNSSEC key (if given) */
+	// Install DNSSEC key (if given)
+	isc_mem_t *keymctx = NULL;
 	if (keynamestr != NULL) {
 		if (keystr == NULL) {
 			fprintf(stderr,
@@ -278,32 +230,37 @@ main(int argc, char *argv[]) {
 		set_key(client, keynamestr, keystr, is_sep, &keymctx, algname);
 	}
 
-	/* Construct qname */
-	namelen = strlen(argv[0]);
+	// Construct qname
+	unsigned int namelen = strlen(argv[0]);
+	isc_buffer_t b;
 	isc_buffer_init(&b, argv[0], namelen);
 	isc_buffer_add(&b, namelen);
+	dns_fixedname_t qname0;
 	dns_fixedname_init(&qname0);
-	qname = dns_fixedname_name(&qname0);
+	dns_name_t *qname = dns_fixedname_name(&qname0);
 	result = dns_name_fromtext(qname, &b, dns_rootname, 0, NULL);
 	if (result != ISC_R_SUCCESS)
 		fprintf(stderr, "failed to convert qname: %u\n", result);
 
-	/* Perform resolution */
-	resopt = DNS_CLIENTRESOPT_ALLOWRUN;
+	// Perform resolution
+	unsigned int resopt = DNS_CLIENTRESOPT_ALLOWRUN;
 	if (keynamestr == NULL)
 		resopt |= DNS_CLIENTRESOPT_NODNSSEC;
+	dns_namelist_t namelist;
 	ISC_LIST_INIT(namelist);
 	result = dns_client_resolve(client, qname, dns_rdataclass_in, type,
-				    resopt, &namelist);
+								resopt, &namelist);
 	if (result != ISC_R_SUCCESS) {
 		fprintf(stderr,
-			"resolution failed: %s\n", dns_result_totext(result));
+				"resolution failed: %s\n", dns_result_totext(result));
 	}
+	dns_name_t *name;
+	dns_rdataset_t *rdataset;
 	for (name = ISC_LIST_HEAD(namelist); name != NULL;
-	     name = ISC_LIST_NEXT(name, link)) {
+		 name = ISC_LIST_NEXT(name, link)) {
 		for (rdataset = ISC_LIST_HEAD(name->list);
-		     rdataset != NULL;
-		     rdataset = ISC_LIST_NEXT(rdataset, link)) {
+			 rdataset != NULL;
+			 rdataset = ISC_LIST_NEXT(rdataset, link)) {
 			if (printdata(rdataset, name) != ISC_R_SUCCESS)
 				fprintf(stderr, "print data failed\n");
 		}
@@ -311,7 +268,7 @@ main(int argc, char *argv[]) {
 
 	dns_client_freeresanswer(client, &namelist);
 
-	/* Cleanup */
+	// Cleanup
 cleanup:
 	dns_client_destroy(&client);
 
