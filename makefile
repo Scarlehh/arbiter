@@ -35,6 +35,7 @@ CUNIT  = $(patsubst %,$(BUILD)%,$(_CUNIT))
 
 # Dependencies
 DEPS = $(OBJ:.o=.d)
+CUNIT_DEPS = $(OBJ:.o=.d)
 
 # Main
 MAIN = main
@@ -57,7 +58,7 @@ $(BUILD)%.o: $(SRC)%.c
 $(MAIN_TEST): default mkdir $(CUNIT)
 	$(CC) $(CFLAGS) $(CUNIT) $(LFLAGS) -lcunit $(LIBS) -o $(BIN)$(MAIN_TEST)
 
--include $(DEPS)
+-include $(CUNIT_DEPS)
 
 # Build test files
 $(BUILD)%.o: $(TEST)%.c
