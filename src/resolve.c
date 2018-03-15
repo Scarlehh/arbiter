@@ -77,7 +77,7 @@ create_dnsclient(isc_mem_t **mctx, isc_appctx_t **actx,
 	result = isc_mem_create(0, 0, mctx);
 	if (result != ISC_R_SUCCESS) {
 		fprintf(stderr, "failed to crate mctx\n");
-		exit(1);
+		return result;
 	}
 
 	result = isc_appctx_create(*mctx, actx);
@@ -102,7 +102,7 @@ create_dnsclient(isc_mem_t **mctx, isc_appctx_t **actx,
 	if (result != ISC_R_SUCCESS) {
 		fprintf(stderr, "dns_client_create failed: %u, %s\n", result,
 			isc_result_totext(result));
-		exit(1);
+		return result;
 	}
 	return result;
 }
@@ -211,7 +211,7 @@ set_key(dns_client_t *client, char *keynamestr, char *keystr,
     }
 }
 
-void
+isc_result_t
 set_defserver(isc_mem_t *mctx, dns_client_t *client) {
 	isc_result_t result;
 	irs_resconf_t *resconf = NULL;
@@ -221,7 +221,7 @@ set_defserver(isc_mem_t *mctx, dns_client_t *client) {
 	if (result != ISC_R_SUCCESS && result != ISC_R_FILENOTFOUND) {
 		fprintf(stderr, "irs_resconf_load failed: %u\n",
 				result);
-		exit(1);
+		return result;
 	}
 	nameservers = irs_resconf_getnameservers(resconf);
 	result = dns_client_setservers(client, dns_rdataclass_in,
@@ -230,12 +230,13 @@ set_defserver(isc_mem_t *mctx, dns_client_t *client) {
 		irs_resconf_destroy(&resconf);
 		fprintf(stderr, "dns_client_setservers failed: %u\n",
 				result);
-		exit(1);
+		return result;
 	}
 	irs_resconf_destroy(&resconf);
+	return result;
 }
 
-void
+isc_result_t
 addserver(dns_client_t *client, const char *addrstr, const char *port,
 		  const char *name_space)
 {
@@ -258,7 +259,7 @@ addserver(dns_client_t *client, const char *addrstr, const char *port,
     if (gaierror != 0) {
         fprintf(stderr, "getaddrinfo failed: %s\n",
             gai_strerror(gaierror));
-        exit(1);
+        return gaierror;
     }
     INSIST(res->ai_addrlen <= sizeof(sa.type));
     memmove(&sa.type, res->ai_addr, res->ai_addrlen);
@@ -278,7 +279,7 @@ addserver(dns_client_t *client, const char *addrstr, const char *port,
         if (result != ISC_R_SUCCESS) {
             fprintf(stderr, "failed to convert qname: %u\n",
                 result);
-            exit(1);
+            return result;
         }
     }
 
@@ -286,6 +287,7 @@ addserver(dns_client_t *client, const char *addrstr, const char *port,
                        &servers);
     if (result != ISC_R_SUCCESS) {
         fprintf(stderr, "set server failed: %u\n", result);
-        exit(1);
+        return result;
     }
+	return result;
 }

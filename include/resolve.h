@@ -18,10 +18,10 @@ void
 set_key(dns_client_t *client, char *keynamestr, char *keystr,
 		isc_boolean_t is_sep, isc_mem_t **mctxp, char *algname);
 
-void
+isc_result_t
 set_defserver(isc_mem_t *mctx, dns_client_t *client);
 
-void
+isc_result_t
 addserver(dns_client_t *client, const char *addrstr, const char *port,
 		  const char *name_space);
 

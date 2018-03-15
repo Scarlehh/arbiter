@@ -209,9 +209,15 @@ main(int argc, char *argv[]) {
 
 	// Set the nameserver
 	if (server == NULL) {
-		set_defserver(mctx, client);
+		result = set_defserver(mctx, client);
+		if (result != ISC_R_SUCCESS) {
+			goto cleanup;
+		}
 	} else {
-		addserver(client, server, port, NULL);
+		result = addserver(client, server, port, NULL);
+		if (result != ISC_R_SUCCESS) {
+			goto cleanup;
+		}
 	}
 
 	// Set the alternate nameserver (when specified)
@@ -225,7 +231,7 @@ main(int argc, char *argv[]) {
 			fprintf(stderr,
 				"key string is missing "
 				"while key name is provided\n");
-			exit(1);
+			goto cleanup;
 		}
 		set_key(client, keynamestr, keystr, is_sep, &keymctx, algname);
 	}
@@ -282,7 +288,7 @@ cleanup:
 		isc_appctx_destroy(&actx);
 	isc_mem_detach(&mctx);
 
-	if (keynamestr != NULL)
+	if (keynamestr != NULL && keystr != NULL)
 		isc_mem_destroy(&keymctx);
 	dns_lib_shutdown();
 
