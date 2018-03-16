@@ -131,7 +131,7 @@ printdata(dns_rdataset_t *rdataset, dns_name_t *owner) {
     return (ISC_R_SUCCESS);
 }
 
-void
+isc_result_t
 set_key(dns_client_t *client, char *keynamestr, char *keystr,
 		isc_boolean_t is_sep, isc_mem_t **mctxp, char *algname)
 {
