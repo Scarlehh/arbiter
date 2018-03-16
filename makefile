@@ -2,14 +2,14 @@
 CC     = gcc
 CFLAGS = -g -O2 $(LIBS)
 LFLAGS  = \
-	/usr/local/lib/libirs.a \
-	/usr/local/lib/libdns.a \
-	/usr/local/lib/libisccfg.a \
-	/usr/local/lib/libisc.a
+	/usr/lib/libirs.so \
+	/usr/lib/libdns.so \
+	/usr/lib/libisccfg.so \
+	/usr/lib/libisc.so \
+	/usr/lib/libxml2.so
 LIBS = -lcrypto -lpthread -lxml2 -lgssapi_krb5 -lkrb5
 INCLUDES = \
 	-D_GNU_SOURCE \
-	-I /usr/include/libxml2 \
 	-I include
 
 MKBIN   = mkdir -p $(BIN)
