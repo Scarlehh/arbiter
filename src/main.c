@@ -228,12 +228,16 @@ main(int argc, char *argv[]) {
 	isc_mem_t *keymctx = NULL;
 	if (keynamestr != NULL) {
 		if (keystr == NULL) {
+			// TODO: search DB for keystr
 			fprintf(stderr,
 				"key string is missing "
 				"while key name is provided\n");
 			goto cleanup;
 		}
-		set_key(client, keynamestr, keystr, is_sep, &keymctx, algname);
+		result = set_key(client, keynamestr, keystr, is_sep, &keymctx, algname);
+		if (result != ISC_R_SUCCESS) {
+			goto cleanup;
+		}
 	}
 
 	// Construct qname

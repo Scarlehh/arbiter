@@ -19,6 +19,9 @@ set_key(dns_client_t *client, char *keynamestr, char *keystr,
 		isc_boolean_t is_sep, isc_mem_t **mctxp, char *algname);
 
 isc_result_t
+get_key(char *keynamestr, char *keystr);
+
+isc_result_t
 set_defserver(isc_mem_t *mctx, dns_client_t *client);
 
 isc_result_t

@@ -152,7 +152,7 @@ set_key(dns_client_t *client, char *keynamestr, char *keystr,
     result = isc_mem_create(0, 0, mctxp);
     if (result != ISC_R_SUCCESS) {
         fprintf(stderr, "failed to create mctx\n");
-        exit(1);
+        return result;
     }
 
     if (algname != NULL) {
@@ -161,7 +161,7 @@ set_key(dns_client_t *client, char *keynamestr, char *keystr,
         result = dns_secalg_fromtext(&alg, &tr);
         if (result != ISC_R_SUCCESS) {
             fprintf(stderr, "failed to identify the algorithm\n");
-            exit(1);
+            return result;
         }
     } else
         alg = DNS_KEYALG_RSASHA1;
@@ -179,7 +179,7 @@ set_key(dns_client_t *client, char *keynamestr, char *keystr,
     result = isc_base64_decodestring(keystr, &keydatabuf);
     if (result != ISC_R_SUCCESS) {
         fprintf(stderr, "base64 decode failed\n");
-        exit(1);
+        return result;
     }
     isc_buffer_usedregion(&keydatabuf, &r);
     keystruct.datalen = r.length;
@@ -190,7 +190,7 @@ set_key(dns_client_t *client, char *keynamestr, char *keystr,
                       &keystruct, &rrdatabuf);
     if (result != ISC_R_SUCCESS) {
         fprintf(stderr, "failed to construct key rdata\n");
-        exit(1);
+        return result;
     }
     namelen = strlen(keynamestr);
     isc_buffer_init(&b, keynamestr, namelen);
@@ -200,15 +200,22 @@ set_key(dns_client_t *client, char *keynamestr, char *keystr,
     result = dns_name_fromtext(keyname, &b, dns_rootname, 0, NULL);
     if (result != ISC_R_SUCCESS) {
         fprintf(stderr, "failed to construct key name\n");
-        exit(1);
+        return result;
     }
     result = dns_client_addtrustedkey(client, dns_rdataclass_in,
                       keyname, &rrdatabuf);
     if (result != ISC_R_SUCCESS) {
         fprintf(stderr, "failed to add key for %s\n",
             keynamestr);
-        exit(1);
+        return result;
     }
+	return result;
+}
+
+isc_result_t
+get_key(char *keynamestr, char *keystr) {
+	isc_result_t result;
+	return result;
 }
 
 isc_result_t
