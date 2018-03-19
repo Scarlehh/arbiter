@@ -80,7 +80,7 @@ finish_with_error(MYSQL *con) {
 }
 
 int
-get_cert(char* configfile, char* domain, MYSQL_ROW* row) {
+get_mysql_cert(char* configfile, char* domain, MYSQL_ROW* row) {
 	struct dbconfig config;
 	get_config(configfile, &config);
 	MYSQL* con = mysql_init(NULL);
