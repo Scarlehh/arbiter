@@ -84,6 +84,8 @@
 
 #include <dst/dst.h>
 
+#include <mysql/mysql.h>
+
 static isc_mem_t *mctx = NULL;
 static isc_appctx_t *actx = NULL;
 static isc_taskmgr_t *taskmgr = NULL;
@@ -92,7 +94,7 @@ static isc_timermgr_t *timermgr = NULL;
 static dns_client_t *client = NULL;
 static isc_sockaddr_t *addr4 = NULL, *addr6 = NULL;
 
-int setup(void) {
+int dns_setup(void) {
 	isc_result_t result;
 	isc_lib_register();
 	result = dns_lib_init();
@@ -111,7 +113,7 @@ int setup(void) {
 	return 0;
 }
 
-int teardown(void) {
+int dns_teardown(void) {
 	dns_client_destroy(&client);
 
 	if (taskmgr != NULL)
@@ -161,6 +163,38 @@ void test_setup_invalid_nameserver_ip_should_not_found(void) {
 }
 
 
+int mysql_setup(void) {
+	return 0;
+}
+
+int mysql_teardown(void) {
+	return 0;
+}
+
+void test_get_root_certificate(void) {
+	MYSQL_ROW row;
+	int result = get_cert(".", &row);
+	CU_ASSERT(row != 0);
+	CU_ASSERT(result == 0);
+	CU_ASSERT(row[0] != NULL);
+}
+
+void test_get_nonexistent_domain(void) {
+	MYSQL_ROW row;
+	int result = get_cert("foo", &row);
+	CU_ASSERT(row == 0);
+	CU_ASSERT(result == 0);
+}
+
+void test_get_NULL_cert(void) {
+	MYSQL_ROW row;
+	int result = get_cert("test.", &row);
+	CU_ASSERT(row != 0);
+	CU_ASSERT(result == 0);
+	CU_ASSERT(row[0] == NULL);
+}
+
+
 /* The main() function for setting up and running the tests.
  * Returns a CUE_SUCCESS on successful running, another
  * CUnit error code on failure.
@@ -174,7 +208,7 @@ int main()
 		return CU_get_error();
 
 	// Nameserver Suite
-	pSuite = CU_add_suite("Setting up nameserver", setup, teardown);
+	pSuite = CU_add_suite("Setting up nameserver", dns_setup, dns_teardown);
 	if (NULL == pSuite) {
 		CU_cleanup_registry();
 		return CU_get_error();
@@ -191,6 +225,25 @@ int main()
 		(NULL == CU_add_test(pSuite,
 							 "Test nameserver with invalid ip gives not found",
 							 test_setup_invalid_nameserver_ip_should_not_found))) {
+		CU_cleanup_registry();
+		return CU_get_error();
+	}
+
+	// Database Suite
+	pSuite = CU_add_suite("Retrieving certificates", mysql_setup, mysql_teardown);
+	if (NULL == pSuite) {
+		CU_cleanup_registry();
+		return CU_get_error();
+	}
+	if ((NULL == CU_add_test(pSuite,
+							 "Test get root certificate",
+							 test_get_root_certificate)) ||
+		(NULL == CU_add_test(pSuite,
+							 "Test get certificate for nonexistent domain",
+							 test_get_nonexistent_domain)) ||
+		(NULL == CU_add_test(pSuite,
+							 "Test get null certificate",
+							 test_get_NULL_cert))) {
 		CU_cleanup_registry();
 		return CU_get_error();
 	}

@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include <isc/base64.h>
 #include <isc/buffer.h>
@@ -66,6 +67,99 @@
 #include <dns/secalg.h>
 
 #include <dst/dst.h>
+
+#include <mysql/mysql.h>
+
+#define FILENAME "config.conf"
+#define MAXBUF 1024
+#define DELIM "="
+
+struct dbconfig
+{
+	char* username;
+	char* password;
+	char* dbname;
+};
+
+void
+get_config(char *filename, struct dbconfig* configstruct)
+{
+	FILE *file = fopen(filename, "r");
+
+	if (file != NULL) {
+		char line[MAXBUF];
+
+		while(fgets(line, sizeof(line), file) != NULL) {
+			char *cfline;
+			cfline = strstr((char *)line,DELIM);
+			cfline = cfline + strlen(DELIM);
+			if(strlen(cfline) && isspace(cfline[strlen(cfline)-1])) {
+				cfline[strlen(cfline)-1] = '\0';
+			}
+
+			int length = strlen(cfline)+1;
+			if (strncmp(line, "username", 8) == 0) {
+				configstruct->username = malloc(sizeof(char)*length);
+				memcpy(configstruct->username, cfline, length);
+				fprintf(stderr, "%s\n", configstruct->username);
+			} else if (strncmp(line, "password", 8) == 0) {
+				configstruct->password = malloc(sizeof(char)*length);
+				memcpy(configstruct->password, cfline, length);
+			} else if (strncmp(line, "dbname", 6) == 0) {
+				configstruct->dbname = malloc(sizeof(char)*length);
+				memcpy(configstruct->dbname, cfline, length);
+			}
+		}
+		fclose(file);
+	}
+}
+
+void
+finish_with_error(MYSQL *con) {
+	fprintf(stderr, "%s\n", mysql_error(con));
+	mysql_close(con);
+}
+
+int
+get_cert(char* domain, MYSQL_ROW* row) {
+	struct dbconfig config;
+	get_config(FILENAME, &config);
+	MYSQL* con = mysql_init(NULL);
+
+	if (con == NULL) {
+		fprintf(stderr, "mysql_init() failed\n");
+		return 1;
+	}
+
+	if (mysql_real_connect(con, "localhost", config.username, config.password,
+						   config.dbname, 0, NULL, 0) == NULL) {
+		finish_with_error(con);
+		return 1;
+	}
+
+	char query[MAXBUF];
+	sprintf(query, "SELECT cert FROM certificates where domain='%s'", domain);
+	if (mysql_query(con, query)) {
+		finish_with_error(con);
+		return 1;
+	}
+
+	MYSQL_RES* result = mysql_store_result(con);
+	if (result == NULL) {
+		finish_with_error(con);
+		return 1;
+	}
+
+	int num_fields = mysql_num_fields(result);
+	*row = mysql_fetch_row(result);
+
+	mysql_free_result(result);
+	mysql_close(con);
+	free(config.username);
+	free(config.password);
+	free(config.dbname);
+	return 0;
+}
 
 isc_result_t
 create_dnsclient(isc_mem_t **mctx, isc_appctx_t **actx,
