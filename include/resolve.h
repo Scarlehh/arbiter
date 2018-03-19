@@ -8,7 +8,7 @@
 #include <mysql/mysql.h>
 
 int
-get_cert(char* domain, MYSQL_ROW* row);
+get_cert(char* configfile, char* domain, MYSQL_ROW* row);
 
 isc_result_t
 create_dnsclient(isc_mem_t **mctx, isc_appctx_t **actx,

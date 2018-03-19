@@ -25,12 +25,14 @@ TEST = test/
 # Object Files
 _OBJ =\
 	main.o \
-	resolve.o
+	resolve.o \
+	helper.o
 OBJ  = $(patsubst %,$(BUILD)%,$(_OBJ))
 
 # Test Files
 _CUNIT =\
 	resolve.o \
+	helper.o \
 	test_resolve.o
 CUNIT  = $(patsubst %,$(BUILD)%,$(_CUNIT))
 
