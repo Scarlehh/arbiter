@@ -26,7 +26,10 @@
  */
 
 #include "resolve.h"
+#include "helper.h"
 #include "CUnit/Basic.h"
+
+#define CONFIG_FILE "testconfig.conf"
 
 /* return type of gai_strerror */
 #define IRS_GAISTRERROR_RETURN_T const char *
@@ -164,16 +167,72 @@ void test_setup_invalid_nameserver_ip_should_not_found(void) {
 
 
 int mysql_setup(void) {
+	struct dbconfig config;
+	get_config(CONFIG_FILE, &config);
+	MYSQL *con = mysql_init(NULL);
+
+	if (con == NULL) {
+		fprintf(stderr, "%s\n", mysql_error(con));
+		return -1;
+	}
+
+	if (mysql_real_connect(con, "localhost", config.username, config.password,
+						   config.dbname, 0, NULL, 0) == NULL) {
+		goto fail;
+	}
+
+	if (mysql_query(con, "CREATE TABLE certificates(domain VARCHAR(191) UNIQUE, cert BLOB)")) {
+		goto fail;
+	}
+
+	if (mysql_query(con, "INSERT INTO certificates VALUES('.', 'FAKE CERT')")) {
+		goto fail;
+	}
+
+	if (mysql_query(con, "INSERT INTO certificates VALUES('test.', NULL)")) {
+		goto fail;
+	}
+
+	mysql_close(con);
 	return 0;
+
+ fail:
+	fprintf(stderr, "%s\n", mysql_error(con));
+	mysql_close(con);
+	return -1;
 }
 
 int mysql_teardown(void) {
+	struct dbconfig config;
+	get_config(CONFIG_FILE, &config);
+	MYSQL *con = mysql_init(NULL);
+
+	if (con == NULL) {
+		fprintf(stderr, "%s\n", mysql_error(con));
+		return -1;
+	}
+
+	if (mysql_real_connect(con, "localhost", config.username, config.password,
+						   config.dbname, 0, NULL, 0) == NULL) {
+		goto fail;
+	}
+
+	 if (mysql_query(con, "DROP TABLE IF EXISTS certificates")) {
+		 goto fail;
+	 }
+
+	mysql_close(con);
 	return 0;
+
+ fail:
+	fprintf(stderr, "%s\n", mysql_error(con));
+	mysql_close(con);
+	return -1;
 }
 
 void test_get_root_certificate(void) {
 	MYSQL_ROW row;
-	int result = get_cert(".", &row);
+	int result = get_cert(CONFIG_FILE, ".", &row);
 	CU_ASSERT(row != 0);
 	CU_ASSERT(result == 0);
 	CU_ASSERT(row[0] != NULL);
@@ -181,14 +240,14 @@ void test_get_root_certificate(void) {
 
 void test_get_nonexistent_domain(void) {
 	MYSQL_ROW row;
-	int result = get_cert("foo", &row);
+	int result = get_cert(CONFIG_FILE, "foo", &row);
 	CU_ASSERT(row == 0);
 	CU_ASSERT(result == 0);
 }
 
 void test_get_NULL_cert(void) {
 	MYSQL_ROW row;
-	int result = get_cert("test.", &row);
+	int result = get_cert(CONFIG_FILE, "test.", &row);
 	CU_ASSERT(row != 0);
 	CU_ASSERT(result == 0);
 	CU_ASSERT(row[0] == NULL);
