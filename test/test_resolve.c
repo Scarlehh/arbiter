@@ -181,6 +181,10 @@ int mysql_setup(void) {
 		goto fail;
 	}
 
+	if (mysql_query(con, "DROP TABLE IF EXISTS certificates")) {
+		goto fail;
+	}
+
 	if (mysql_query(con, "CREATE TABLE certificates(domain VARCHAR(191) UNIQUE, cert BLOB)")) {
 		goto fail;
 	}
@@ -217,9 +221,9 @@ int mysql_teardown(void) {
 		goto fail;
 	}
 
-	 if (mysql_query(con, "DROP TABLE IF EXISTS certificates")) {
-		 goto fail;
-	 }
+	if (mysql_query(con, "DROP TABLE IF EXISTS certificates")) {
+		goto fail;
+	}
 
 	mysql_close(con);
 	return 0;
@@ -232,7 +236,7 @@ int mysql_teardown(void) {
 
 void test_get_root_certificate(void) {
 	MYSQL_ROW row;
-	int result = get_cert(CONFIG_FILE, ".", &row);
+	int result = get_mysql_cert(CONFIG_FILE, ".", &row);
 	CU_ASSERT(row != 0);
 	CU_ASSERT(result == 0);
 	CU_ASSERT(row[0] != NULL);
@@ -240,14 +244,14 @@ void test_get_root_certificate(void) {
 
 void test_get_nonexistent_domain(void) {
 	MYSQL_ROW row;
-	int result = get_cert(CONFIG_FILE, "foo", &row);
+	int result = get_mysql_cert(CONFIG_FILE, "foo", &row);
 	CU_ASSERT(row == 0);
 	CU_ASSERT(result == 0);
 }
 
 void test_get_NULL_cert(void) {
 	MYSQL_ROW row;
-	int result = get_cert(CONFIG_FILE, "test.", &row);
+	int result = get_mysql_cert(CONFIG_FILE, "test.", &row);
 	CU_ASSERT(row != 0);
 	CU_ASSERT(result == 0);
 	CU_ASSERT(row[0] == NULL);
