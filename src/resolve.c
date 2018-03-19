@@ -70,7 +70,9 @@
 
 #include <mysql/mysql.h>
 
-#define FILENAME "config.conf"
+#include <openssl/pem.h>
+
+#define CONFIG_FILE "config.conf"
 #define MAXBUF 1024
 
 void
@@ -108,8 +110,6 @@ get_mysql_cert(char* configfile, char* domain, MYSQL_ROW* row) {
 		finish_with_error(con);
 		return 1;
 	}
-
-	int num_fields = mysql_num_fields(result);
 	*row = mysql_fetch_row(result);
 
 	mysql_free_result(result);
@@ -268,6 +268,35 @@ set_key(dns_client_t *client, char *keynamestr, char *keystr,
 isc_result_t
 get_key(char *keynamestr, char *keystr) {
 	isc_result_t result;
+	MYSQL_ROW row;
+	get_mysql_cert(CONFIG_FILE, keynamestr, &row);
+
+	// Convert MYSQL query to X509
+	BIO* cert_bio = BIO_new(BIO_s_mem());
+	BIO_write(cert_bio, row[0], strlen(row[0]));
+	X509* certX509 = PEM_read_bio_X509(cert_bio, NULL, NULL, NULL);
+	if (!certX509) {
+		fprintf(stderr, "unable to parse certificate in memory\n");
+		return EXIT_FAILURE;
+	}
+
+	// Get public key from certificate
+	EVP_PKEY* pkey = X509_get_pubkey(certX509);
+	X509_free(certX509);
+	BIO_free(cert_bio);
+
+	BIO* key_bio = BIO_new(BIO_s_mem());
+	PEM_write_bio_PUBKEY(key_bio, pkey);
+
+	// Convert public key to base64 encoding
+	char *p;
+	int read_size = (int) BIO_get_mem_data(key_bio, &p);
+	keystr = malloc(sizeof(char)*read_size);
+	memcpy(keystr, p, read_size);
+	free(p);
+	EVP_PKEY_free(pkey);
+	BIO_free(key_bio);
+
 	return result;
 }
 
