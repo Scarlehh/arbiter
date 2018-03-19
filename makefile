@@ -6,7 +6,8 @@ LFLAGS  = \
 	/usr/lib/libdns.so \
 	/usr/lib/libisccfg.so \
 	/usr/lib/libisc.so \
-	/usr/lib/libxml2.so
+	/usr/lib/libxml2.so \
+	/usr/lib/libmysqlclient.so
 LIBS = -lcrypto -lpthread -lxml2 -lgssapi_krb5 -lkrb5
 INCLUDES = \
 	-D_GNU_SOURCE \

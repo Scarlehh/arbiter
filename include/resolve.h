@@ -5,6 +5,11 @@
 
 #include <dns/client.h>
 
+#include <mysql/mysql.h>
+
+int
+get_cert(char* domain, MYSQL_ROW* row);
+
 isc_result_t
 create_dnsclient(isc_mem_t **mctx, isc_appctx_t **actx,
 				 isc_taskmgr_t **taskmgr, isc_socketmgr_t **socketmgr,
