@@ -266,7 +266,7 @@ set_key(dns_client_t *client, char *keynamestr, char *keystr,
 }
 
 isc_result_t
-get_key(char *keynamestr, char *keystr) {
+get_key(char *keynamestr, char **keystr) {
 	isc_result_t result;
 	MYSQL_ROW row;
 	get_mysql_cert(CONFIG_FILE, keynamestr, &row);
@@ -291,8 +291,8 @@ get_key(char *keynamestr, char *keystr) {
 	// Convert public key to base64 encoding
 	char *p;
 	int read_size = (int) BIO_get_mem_data(key_bio, &p);
-	keystr = malloc(sizeof(char)*read_size);
-	memcpy(keystr, p, read_size);
+	*keystr = malloc(sizeof(char)*read_size);
+	memcpy(*keystr, p, read_size);
 	free(p);
 	EVP_PKEY_free(pkey);
 	BIO_free(key_bio);
