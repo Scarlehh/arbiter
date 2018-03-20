@@ -75,49 +75,49 @@
 #define CONFIG_FILE "config.conf"
 #define MAXBUF 1024
 
-void
-finish_with_error(MYSQL *con) {
-	fprintf(stderr, "%s\n", mysql_error(con));
-	mysql_close(con);
-}
-
-int
+isc_result_t
 get_mysql_cert(char* configfile, char* domain, MYSQL_ROW* row) {
-	struct dbconfig config;
-	get_config(configfile, &config);
 	MYSQL* con = mysql_init(NULL);
-
 	if (con == NULL) {
 		fprintf(stderr, "mysql_init() failed\n");
-		return 1;
+		return ISC_R_CONNREFUSED;
 	}
+
+	isc_result_t result;
+	struct dbconfig config;
+	get_config(configfile, &config);
 
 	if (mysql_real_connect(con, "localhost", config.username, config.password,
 						   config.dbname, 0, NULL, 0) == NULL) {
-		finish_with_error(con);
-		return 1;
+		fprintf(stderr, "%s\n", mysql_error(con));
+		result = ISC_R_CONNREFUSED;
+		goto finish;
 	}
 
 	char query[MAXBUF];
 	sprintf(query, "SELECT cert FROM certificates where domain='%s'", domain);
 	if (mysql_query(con, query)) {
-		finish_with_error(con);
-		return 1;
+		fprintf(stderr, "%s\n", mysql_error(con));
+		result = ISC_R_FAILURE;
+		goto finish;
 	}
 
-	MYSQL_RES* result = mysql_store_result(con);
-	if (result == NULL) {
-		finish_with_error(con);
-		return 1;
+	MYSQL_RES* mysql_result = mysql_store_result(con);
+	if (mysql_result == NULL) {
+		fprintf(stderr, "%s\n", mysql_error(con));
+		result = ISC_R_FAILURE;
+		goto finish;
 	}
-	*row = mysql_fetch_row(result);
+	*row = mysql_fetch_row(mysql_result);
+	mysql_free_result(mysql_result);
+	result = ISC_R_SUCCESS;
 
-	mysql_free_result(result);
+ finish:
 	mysql_close(con);
 	free(config.username);
 	free(config.password);
 	free(config.dbname);
-	return 0;
+	return result;
 }
 
 isc_result_t

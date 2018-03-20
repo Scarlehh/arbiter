@@ -7,7 +7,7 @@
 
 #include <mysql/mysql.h>
 
-int
+isc_result_t
 get_mysql_cert(char* configfile, char* domain, MYSQL_ROW* row);
 
 isc_result_t
