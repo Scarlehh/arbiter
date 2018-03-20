@@ -282,7 +282,7 @@ get_key(char *keynamestr, char **keystr) {
 	char* cert;
 	isc_result_t result = get_mysql_cert(CONFIG_FILE, keynamestr, &cert);
 	if (result != ISC_R_SUCCESS) {
-		fprintf(stderr, "failed to get certificate from the datavase: %u\n",
+		fprintf(stderr, "failed to get certificate from the database: %u\n",
 				result);
 		return result;
 	}
