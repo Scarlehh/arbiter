@@ -279,39 +279,52 @@ set_key(dns_client_t *client, char *keynamestr, char *keystr,
 
 isc_result_t
 get_key(char *keynamestr, char **keystr) {
-	isc_result_t result;
 	char* cert;
-	get_mysql_cert(CONFIG_FILE, keynamestr, &cert);
+	isc_result_t result = get_mysql_cert(CONFIG_FILE, keynamestr, &cert);
+	if (result != ISC_R_SUCCESS) {
+		fprintf(stderr, "failed to get certificate from the datavase: %u\n",
+				result);
+		return result;
+	}
 
 	// Convert MYSQL query to X509
 	BIO* cert_bio = BIO_new(BIO_s_mem());
 	BIO_write(cert_bio, cert, strlen(cert));
-	free(cert);
-
 	X509* certX509 = PEM_read_bio_X509(cert_bio, NULL, NULL, NULL);
+	free(cert);
 	if (!certX509) {
-		fprintf(stderr, "unable to parse certificate in memory\n");
-		return EXIT_FAILURE;
+		fprintf(stderr, "failed to parse certificate in memory\n");
+		return ISC_R_FAILURE;
 	}
 
 	// Get public key from certificate
 	EVP_PKEY* pkey = X509_get_pubkey(certX509);
 	X509_free(certX509);
 	BIO_free(cert_bio);
-
-	BIO* key_bio = BIO_new(BIO_s_mem());
-	PEM_write_bio_PUBKEY(key_bio, pkey);
+	if (!pkey) {
+		fprintf(stderr, "failed to extract public key from certificate\n");
+		return ISC_R_FAILURE;
+	}
 
 	// Convert public key to base64 encoding
+	BIO* key_bio = BIO_new(BIO_s_mem());
+	PEM_write_bio_PUBKEY(key_bio, pkey);
 	char *p;
 	int read_size = (int) BIO_get_mem_data(key_bio, &p);
+	EVP_PKEY_free(pkey);
+	if (read_size < 1 || !p) {
+		BIO_free(key_bio);
+		fprintf(stderr, "failed to read public key\n");
+		return ISC_R_FAILURE;
+	}
+
+	// Copy public key
 	*keystr = malloc(sizeof(char)*read_size);
 	memcpy(*keystr, p, read_size);
 	free(p);
-	EVP_PKEY_free(pkey);
 	BIO_free(key_bio);
 
-	return result;
+	return ISC_R_SUCCESS;
 }
 
 isc_result_t
