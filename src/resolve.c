@@ -76,7 +76,7 @@
 #define MAXBUF 1024
 
 isc_result_t
-get_mysql_cert(char* configfile, char* domain, MYSQL_ROW* row) {
+get_mysql_cert(char* configfile, char* domain, char** cert) {
 	MYSQL* con = mysql_init(NULL);
 	if (con == NULL) {
 		fprintf(stderr, "mysql_init() failed\n");
@@ -108,7 +108,19 @@ get_mysql_cert(char* configfile, char* domain, MYSQL_ROW* row) {
 		result = ISC_R_FAILURE;
 		goto finish;
 	}
-	*row = mysql_fetch_row(mysql_result);
+
+	MYSQL_ROW row = mysql_fetch_row(mysql_result);
+	if (row == 0) {
+		fprintf(stderr, "Domain is not registered in database");
+		result = ISC_R_NOTFOUND;
+		goto finish;
+	} else if (row[0] == NULL) {
+		result = ISC_R_SUCCESS;
+		goto finish;
+	}
+
+	*cert = malloc(sizeof(char)*(strlen(row[0])+1));
+	strncpy(*cert, *row, strlen(row[0])+1);
 	mysql_free_result(mysql_result);
 	result = ISC_R_SUCCESS;
 
@@ -268,12 +280,14 @@ set_key(dns_client_t *client, char *keynamestr, char *keystr,
 isc_result_t
 get_key(char *keynamestr, char **keystr) {
 	isc_result_t result;
-	MYSQL_ROW row;
-	get_mysql_cert(CONFIG_FILE, keynamestr, &row);
+	char* cert;
+	get_mysql_cert(CONFIG_FILE, keynamestr, &cert);
 
 	// Convert MYSQL query to X509
 	BIO* cert_bio = BIO_new(BIO_s_mem());
-	BIO_write(cert_bio, row[0], strlen(row[0]));
+	BIO_write(cert_bio, cert, strlen(cert));
+	free(cert);
+
 	X509* certX509 = PEM_read_bio_X509(cert_bio, NULL, NULL, NULL);
 	if (!certX509) {
 		fprintf(stderr, "unable to parse certificate in memory\n");

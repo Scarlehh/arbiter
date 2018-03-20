@@ -235,26 +235,27 @@ int mysql_teardown(void) {
 }
 
 void test_get_root_certificate(void) {
-	MYSQL_ROW row;
-	isc_result_t result = get_mysql_cert(CONFIG_FILE, ".", &row);
-	CU_ASSERT(row != 0);
+	char* cert;
+	isc_result_t result = get_mysql_cert(CONFIG_FILE, ".", &cert);
+	CU_ASSERT(strcmp(cert, "FAKE CERT") == 0);
 	CU_ASSERT(result == ISC_R_SUCCESS);
-	CU_ASSERT(row[0] != NULL);
+	free(cert);
 }
 
 void test_get_nonexistent_domain(void) {
-	MYSQL_ROW row;
-	isc_result_t result = get_mysql_cert(CONFIG_FILE, "foo", &row);
-	CU_ASSERT(row == 0);
-	CU_ASSERT(result == ISC_R_SUCCESS);
+	char* cert;
+	isc_result_t result = get_mysql_cert(CONFIG_FILE, "foo", &cert);
+	CU_ASSERT(cert == 0);
+	CU_ASSERT(result == ISC_R_NOTFOUND);
+	free(cert);
 }
 
 void test_get_NULL_cert(void) {
-	MYSQL_ROW row;
-	isc_result_t result = get_mysql_cert(CONFIG_FILE, "test.", &row);
-	CU_ASSERT(row != 0);
+	char* cert;
+	isc_result_t result = get_mysql_cert(CONFIG_FILE, "test.", &cert);
+	CU_ASSERT(cert == NULL);
 	CU_ASSERT(result == ISC_R_SUCCESS);
-	CU_ASSERT(row[0] == NULL);
+	free(cert);
 }
 
 
