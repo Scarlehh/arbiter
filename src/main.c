@@ -227,11 +227,18 @@ main(int argc, char *argv[]) {
 	// Install DNSSEC key (if given)
 	isc_mem_t *keymctx = NULL;
 	if (keynamestr != NULL) {
+		fprintf(stderr, "Keynamestr: %s\n", keynamestr);
 		if (keystr == NULL) {
-			// TODO: search DB for keystr
+			result = get_key(keynamestr, &keystr);
+			if (result != ISC_R_SUCCESS) {
+				fprintf(stderr, "failed to get key from database: %u\n",
+						result);
+				goto cleanup;
+			}
+		}
+		if (keystr == NULL) {
 			fprintf(stderr,
-				"key string is missing "
-				"while key name is provided\n");
+					"key string is missing while key name is provided\n");
 			goto cleanup;
 		}
 		result = set_key(client, keynamestr, keystr, is_sep, &keymctx, algname);

@@ -111,7 +111,7 @@ get_mysql_cert(char* configfile, char* domain, char** cert) {
 
 	MYSQL_ROW row = mysql_fetch_row(mysql_result);
 	if (row == 0) {
-		fprintf(stderr, "Domain is not registered in database");
+		fprintf(stderr, "Domain is not registered in database\n");
 		result = ISC_R_NOTFOUND;
 		goto finish;
 	} else if (row[0] == NULL) {
@@ -319,9 +319,26 @@ get_key(char *keynamestr, char **keystr) {
 	}
 
 	// Copy public key
-	*keystr = malloc(sizeof(char)*read_size);
-	memcpy(*keystr, p, read_size);
-	free(p);
+	const char *KEY_START = "-----BEGIN PUBLIC KEY-----\n";
+	const char *KEY_END = "-----END PUBLIC KEY-----";
+	char* start = strstr(p, KEY_START);
+	char* end = strstr(p, KEY_END);
+	if (start && end) {
+		start += strlen(KEY_START);
+		*keystr = malloc(end-start+1);
+		char* nl;
+		char* keystart = *keystr;
+		while ((nl = strstr(start, "\n")) < end) {
+			memcpy(keystart, start, nl-start);
+			keystart += nl-start;
+			start = nl+1;
+		}
+		*keystart = '\0';
+		result = ISC_R_SUCCESS;
+	} else {
+		fprintf(stderr, "failed to extract base64 from labels\n");
+		result = ISC_R_FAILURE;
+	}
 	BIO_free(key_bio);
 
 	return ISC_R_SUCCESS;
