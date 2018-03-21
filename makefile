@@ -1,6 +1,6 @@
 # Compiler
 CC     = gcc
-CFLAGS = -g -O2 $(LIBS)
+CFLAGS = -g -O2
 LFLAGS  = \
 	/usr/lib/libirs.so \
 	/usr/lib/libdns.so \
@@ -21,62 +21,93 @@ BIN   = bin/
 BUILD = build/
 SRC   = src/
 TEST = test/
+UTIL = util/
 
-# Object Files
-_OBJ =\
+# Main Files
+_OBJ_RES =\
 	main.o \
 	resolve.o \
 	helper.o
-OBJ  = $(patsubst %,$(BUILD)%,$(_OBJ))
+OBJ_RES  = $(patsubst %,$(BUILD)%,$(_OBJ_RES))
 
 # Test Files
-_CUNIT =\
+_OBJ_TEST_RES =\
 	resolve.o \
 	helper.o \
 	test_resolve.o
-CUNIT  = $(patsubst %,$(BUILD)%,$(_CUNIT))
+OBJ_TEST_RES  = $(patsubst %,$(BUILD)%,$(_OBJ_TEST_RES))
+
+# Util Files
+_OBJ_UTIL =\
+	ecdsa.o
+OBJ_UTIL  = $(patsubst %,$(BUILD)%,$(_OBJ_UTIL))
 
 # Dependencies
-DEPS = $(OBJ:.o=.d)
-CUNIT_DEPS = $(OBJ:.o=.d)
+DEPS_RES = $(OBJ_RES:.o=.d)
+DEPS_TEST_RES = $(OBJ_TEST_RES:.o=.d)
+DEPS_TEST_RES = $(OBJ_UTIL:.o=.d)
 
 # Main
-MAIN = main
-MAIN_TEST = test
+MAIN_RES = main
+MAIN_TEST_RES = test
+MAIN_UTIL = util
 
-# Build executable
+
 .PHONY: default
-default: mkdir $(OBJ)
-	$(CC) $(CFLAGS) $(OBJ) $(LFLAGS) $(LIBS) -o $(BIN)$(MAIN)
+default: $(MAIN_RES) $(MAIN_TEST_RES) $(MAIN_UTIL)
 
--include $(DEPS)
+# Resolver
+.PHONY: $(MAIN_RES)
+$(MAIN_RES): mkdir $(OBJ_RES)
+	$(CC) $(CFLAGS) $(OBJ_RES) $(LFLAGS) $(LIBS) -o $(BIN)$(MAIN_RES)
 
-# Build object files
+-include $(DEPS_RES)
+
+
+# Test resolver
+.PHONY: $(MAIN_TEST_RES)
+$(MAIN_TEST_RES): mkdir $(MAIN_RES) $(OBJ_TEST_RES)
+	$(CC) $(CFLAGS) $(OBJ_TEST_RES) $(LFLAGS) $(LIBS) -lcunit -o $(BIN)$(MAIN_TEST_RES)
+
+-include $(DEPS_TEST_RES)
+
+
+# Util
+.PHONY: $(MAIN_UTIL)
+$(MAIN_UTIL): mkdir $(OBJ_UTIL)
+	$(CC) $(CFLAGS) $(OBJ_UTIL) -lcrypto -o $(BIN)$(MAIN_UTIL)
+
+-include $(DEPS_UTL)
+
+
+# Build src files
 $(BUILD)%.o: $(SRC)%.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -MMD -MF $(@:.o=.d) -o $@
-
-
-# Compile test
-.PHONY: $(MAIN_TEST)
-$(MAIN_TEST): default mkdir $(CUNIT)
-	$(CC) $(CFLAGS) $(CUNIT) $(LFLAGS) -lcunit $(LIBS) -o $(BIN)$(MAIN_TEST)
-
--include $(CUNIT_DEPS)
 
 # Build test files
 $(BUILD)%.o: $(TEST)%.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -MMD -MF $(@:.o=.d) -o $@
 
+# Build util files
+$(BUILD)%.o: $(UTIL)%.c
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -MMD -MF $(@:.o=.d) -o $@
 
-# Run program
-.PHONY: run
-run:
-	./$(BIN)$(MAIN)
 
-# Run program
+# Run main
+.PHONY: mrun
+mrun:
+	./$(BIN)$(MAIN_RES)
+
+# Run test resolver
 .PHONY: trun
 trun:
-	./$(BIN)$(MAIN_TEST)
+	./$(BIN)$(MAIN_TEST_RES)
+
+# Run test resolver
+.PHONY: urun
+urun:
+	./$(BIN)$(MAIN_UTIL)
+
 
 # Build directory structure
 .PHONY: mkdir
