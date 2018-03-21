@@ -116,6 +116,7 @@ get_mysql_cert(char* configfile, char* domain, char** cert) {
 		goto finish;
 	} else if (row[0] == NULL) {
 		result = ISC_R_SUCCESS;
+		*cert = NULL;
 		goto finish;
 	}
 

@@ -245,9 +245,7 @@ void test_get_root_certificate(void) {
 void test_get_nonexistent_domain(void) {
 	char* cert;
 	isc_result_t result = get_mysql_cert(CONFIG_FILE, "foo", &cert);
-	CU_ASSERT(cert == 0);
 	CU_ASSERT(result == ISC_R_NOTFOUND);
-	free(cert);
 }
 
 void test_get_NULL_cert(void) {
@@ -255,7 +253,6 @@ void test_get_NULL_cert(void) {
 	isc_result_t result = get_mysql_cert(CONFIG_FILE, "test.", &cert);
 	CU_ASSERT(cert == NULL);
 	CU_ASSERT(result == ISC_R_SUCCESS);
-	free(cert);
 }
 
 
