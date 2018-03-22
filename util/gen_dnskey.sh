@@ -8,7 +8,7 @@ fi
 if [ -z "$2" ] || [ "$2" == "ZSK" ]; then
 	dnssec-keygen -a ECDSAP256SHA256 -b 256 -n ZONE $1
 else
-	if [ "$2" == "KSK"]; then
+	if [ "$2" == "KSK" ]; then
 		dnssec-keygen -a ECDSAP256SHA256 -b 256 -n ZONE $1
 	else
 		echo "Second argument 'KSK' if you wish to generate a key signing key"
