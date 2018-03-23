@@ -236,6 +236,7 @@ main(int argc, char *argv[]) {
 				goto cleanup;
 			}
 		}
+		fprintf(stderr, "Keystr: %s\n", keystr);
 		if (keystr == NULL) {
 			fprintf(stderr,
 					"key string is missing while key name is provided\n");
