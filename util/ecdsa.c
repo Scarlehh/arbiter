@@ -102,22 +102,14 @@ int main(int argc, char* argv[]) {
 	EC_KEY_free(eckey);
 
 	// Get the privkey PEM form: */
-	BIO *bio = BIO_new(BIO_s_mem());
-	PEM_write_bio_PrivateKey_traditional(bio, ossl_pkey, NULL, NULL, 0, NULL, NULL);
-
-	int keylen = BIO_pending(bio);
-	char* pem_key = malloc(sizeof(char)*(keylen+1)); /* Null-terminate */
-	BIO_read(bio, pem_key, keylen);
-
-	printf("%s\n", pem_key);
-	BIO_free_all(bio);
-	free(pem_key);
-
+	BIO* outbio  = BIO_new_fp(stdout, BIO_NOCLOSE);
+	PEM_write_bio_PrivateKey_traditional(outbio, ossl_pkey, NULL, NULL, 0, NULL, NULL);
+	BIO_free_all(outbio);
 
 	char *cc = EC_POINT_point2hex(group, pub_key, 4, ctx);
 	BN_CTX_free(ctx);
 
-	printf("Public key: %s\n", cc);
+	printf("\nPublic key: %s\n", cc);
 	free(cc);
 
 	return 0;
