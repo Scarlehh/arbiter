@@ -227,7 +227,6 @@ main(int argc, char *argv[]) {
 	// Install DNSSEC key (if given)
 	isc_mem_t *keymctx = NULL;
 	if (keynamestr != NULL) {
-		fprintf(stderr, "Keynamestr: %s\n", keynamestr);
 		if (keystr == NULL) {
 			result = get_key(keynamestr, &keystr);
 			if (result != ISC_R_SUCCESS) {
@@ -235,8 +234,9 @@ main(int argc, char *argv[]) {
 						result);
 				goto cleanup;
 			}
+			// Adjust to compressed ECC key
+			keystr+=36;
 		}
-		fprintf(stderr, "Keystr: %s\n", keystr);
 		if (keystr == NULL) {
 			fprintf(stderr,
 					"key string is missing while key name is provided\n");
