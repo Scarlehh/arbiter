@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ -z "$1"]; then
+if [ -z "$1" ]; then
 	echo "Need to supply cert name"
 else
 	if [ -z "$2" ]; then
