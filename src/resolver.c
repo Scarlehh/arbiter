@@ -11,7 +11,7 @@
 extern int verbosity;
 
 int
-create_resolver(char* serv, ldns_resolver** res) {
+create_resolver(ldns_resolver** res, char* serv) {
 	ldns_status status;
 
 	ldns_rdf* serv_rdf;
@@ -79,7 +79,7 @@ create_resolver(char* serv, ldns_resolver** res) {
 }
 
 int
-query(ldns_resolver* res, ldns_rdf* domain, ldns_rr_type type, ldns_pkt** p) {
+query(ldns_pkt** p, ldns_resolver* res, char* domain, ldns_rr_type type) {
 	if (verbosity >= 3) {
 		printf("\nQuerying for: ");
 		ldns_rdf_print(stdout, domain);
@@ -96,7 +96,7 @@ query(ldns_resolver* res, ldns_rdf* domain, ldns_rr_type type, ldns_pkt** p) {
 }
 
 int
-get_key(char *keynamestr, char **keystr) {
+get_key(char** keystr, char* keynamestr) {
 	char* cert;
 	int result = get_mysql_cert(CONFIG_FILE, keynamestr, &cert);
 	if (result != EXIT_SUCCESS) {
@@ -112,8 +112,8 @@ get_key(char *keynamestr, char **keystr) {
 	free(cert);
 	if (!certX509) {
 		fprintf(stderr, "failed to parse certificate in memory\n");
-	return EXIT_FAILURE;
-}
+		return EXIT_FAILURE;
+	}
 
 	// Get public key from certificate
 	EVP_PKEY* pkey = X509_get_pubkey(certX509);
@@ -127,7 +127,7 @@ get_key(char *keynamestr, char **keystr) {
 	// Convert public key to base64 encoding
 	BIO* key_bio = BIO_new(BIO_s_mem());
 	PEM_write_bio_PUBKEY(key_bio, pkey);
-	char *p;
+	char* p;
 	int read_size = (int) BIO_get_mem_data(key_bio, &p);
 	EVP_PKEY_free(pkey);
 	if (read_size < 1 || !p) {
@@ -137,8 +137,8 @@ get_key(char *keynamestr, char **keystr) {
 	}
 
 	// Copy public key
-	const char *KEY_START = "-----BEGIN PUBLIC KEY-----\n";
-	const char *KEY_END = "-----END PUBLIC KEY-----";
+	const char* KEY_START = "-----BEGIN PUBLIC KEY-----\n";
+	const char* KEY_END = "-----END PUBLIC KEY-----";
 	char* start = strstr(p, KEY_START);
 	char* end = strstr(p, KEY_END);
 	if (start && end) {
@@ -160,4 +160,54 @@ get_key(char *keynamestr, char **keystr) {
 	BIO_free(key_bio);
 
 	return EXIT_SUCCESS;
+}
+
+int
+create_verifier(ldns_dnssec_data_chain** chain, ldns_dnssec_trust_tree** tree,
+				ldns_resolver* res, ldns_rr_list* rrlist, ldns_pkt* pkt) {
+	*chain = ldns_dnssec_build_data_chain(res, NULL, rrlist, pkt, NULL);
+	if (!chain) {
+		fprintf(stderr, "Couldn't create DNSSEC data chain\n");
+		return EXIT_FAILURE;
+	} else if (verbosity >= 4) {
+		printf("\n\nDNSSEC Data Chain:\n");
+		ldns_dnssec_data_chain_print(stdout, *chain);
+	}
+
+	*tree = ldns_dnssec_derive_trust_tree(*chain, NULL);
+	if (!tree) {
+		fprintf(stderr, "Couldn't create DNSSEC trust tree\n");
+		return EXIT_FAILURE;
+	} else if (verbosity >= 2) {
+		printf("\n\nDNSSEC Trust tree:\n");
+		ldns_dnssec_trust_tree_print(stdout, *tree, 0, true);
+	}
+	return EXIT_SUCCESS;
+}
+
+int
+verify(ldns_dnssec_trust_tree* tree, ldns_rr_list* trustedkeys) {
+	if (ldns_rr_list_rr_count(trustedkeys) > 0) {
+		ldns_status tree_result =
+			ldns_dnssec_trust_tree_contains_keys(tree, trustedkeys);
+
+		if (tree_result == LDNS_STATUS_DNSSEC_EXISTENCE_DENIED) {
+			if (verbosity >= 1) {
+				printf("Existence denied or verifiably insecure\n");
+			}
+			return EXIT_FAILURE;
+		} else if (tree_result != LDNS_STATUS_OK) {
+			if (verbosity >= 1) {
+				printf("No trusted keys found in tree: first error was: %s\n", ldns_get_errorstr_by_id(tree_result));
+			}
+			return EXIT_FAILURE;
+		} else {
+			printf("Chain verified.\n");
+			return EXIT_SUCCESS;
+		}
+	}
+	if (verbosity >= 0) {
+		printf("You have not provided any trusted keys.\n");
+	}
+	return EXIT_FAILURE;
 }
