@@ -20,6 +20,7 @@ usage(FILE *fp, char *prog) {
 	fprintf(fp, "-4\t\tonly use IPv4\n");
 	fprintf(fp, "-6\t\tonly use IPv6\n");
 	fprintf(fp, "-f\t\tfull; get all rrsets instead of only a list of names and types\n");
+	fprintf(fp, "-t <rrtype>\t\tLook up this record");
 	fprintf(fp, "-s <name>\t\tStart from this name\n");
 	fprintf(fp, "-v <verbosity>\t\tVerbosity level [1-5]\n");
 	fprintf(fp, "-version\tShow version and exit\n");
@@ -38,6 +39,8 @@ main(int argc, char *argv[]) {
 
 	ldns_rdf *domain = NULL;
 	ldns_rdf *startpoint = NULL;
+
+	ldns_rr_type rtype = LDNS_RR_TYPE_A;
 
 	if (argc < 2) {
 		usage(stdout, argv[0]);
@@ -58,6 +61,29 @@ main(int argc, char *argv[]) {
 				fam = LDNS_RESOLV_INET6;
 			} else if (strncmp(argv[i], "-f", 3) == 0) {
 				full = true;
+			} else if (strncmp(argv[i], "-t", 3) == 0) {
+				if (i + 1 < argc) {
+					if (!strcmp(argv[i + 1], "A")) {
+						rtype = LDNS_RR_TYPE_A;
+					} else if (!strcmp(argv[i + 1], "NS")) {
+						rtype = LDNS_RR_TYPE_NS;
+					} else if (!strcmp(argv[i + 1], "CNAME")) {
+						rtype = LDNS_RR_TYPE_CNAME;
+					} else if (!strcmp(argv[i + 1], "SOA")) {
+						rtype = LDNS_RR_TYPE_SOA;
+					} else if (!strcmp(argv[i + 1], "DS")) {
+						rtype = LDNS_RR_TYPE_DS;
+					} else if (!strcmp(argv[i + 1], "DNSKEY")) {
+						rtype = LDNS_RR_TYPE_DNSKEY;
+					} else {
+						fprintf(stderr, "RRtype not supported\n");
+						exit(1);
+					}
+				} else {
+					printf("Missing argument for -t\n");
+					exit(1);
+				}
+				i++;
 			} else if (strncmp(argv[i], "-s", 3) == 0) {
 				if (i + 1 < argc) {
 					if (ldns_str2rdf_dname(&startpoint, argv[i + 1]) != LDNS_STATUS_OK) {
@@ -138,7 +164,8 @@ main(int argc, char *argv[]) {
 		goto exit;
 	}
 
-	query(res, domain, LDNS_RR_TYPE_A);
+	ldns_pkt* p;
+	query(res, domain, rtype, &p);
 
  exit:
 	return result;
