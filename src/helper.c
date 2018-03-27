@@ -5,6 +5,8 @@
 #include <string.h>
 #include <ctype.h>
 
+#include <mysql/mysql.h>
+
 #define MAXBUF 1024
 #define DELIM "="
 
@@ -38,4 +40,62 @@ get_config(char *filename, struct dbconfig* configstruct)
 		}
 		fclose(file);
 	}
+}
+
+int
+get_mysql_cert(char* configfile, char* domain, char** cert) {
+	MYSQL* con = mysql_init(NULL);
+	if (con == NULL) {
+		fprintf(stderr, "mysql_init() failed\n");
+		return EXIT_FAILURE;
+	}
+
+	int result;
+	struct dbconfig config;
+	get_config(configfile, &config);
+
+	if (mysql_real_connect(con, "localhost", config.username, config.password,
+						   config.dbname, 0, NULL, 0) == NULL) {
+		fprintf(stderr, "%s\n", mysql_error(con));
+		result = EXIT_FAILURE;
+		goto finish;
+	}
+
+	char query[MAXBUF];
+	sprintf(query, "SELECT cert FROM certificates where domain='%s'", domain);
+	if (mysql_query(con, query)) {
+		fprintf(stderr, "%s\n", mysql_error(con));
+		result = EXIT_FAILURE;
+		goto finish;
+	}
+
+	MYSQL_RES* mysql_result = mysql_store_result(con);
+	if (mysql_result == NULL) {
+		fprintf(stderr, "%s\n", mysql_error(con));
+		result = EXIT_FAILURE;
+		goto finish;
+	}
+
+	MYSQL_ROW row = mysql_fetch_row(mysql_result);
+	if (row == 0) {
+		fprintf(stderr, "Domain is not registered in database\n");
+		result = EXIT_FAILURE;
+		goto finish;
+	} else if (row[0] == NULL) {
+		result = EXIT_SUCCESS;
+		*cert = NULL;
+		goto finish;
+	}
+
+	*cert = malloc(sizeof(char)*(strlen(row[0])+1));
+	strncpy(*cert, *row, strlen(row[0])+1);
+	mysql_free_result(mysql_result);
+	result = EXIT_SUCCESS;
+
+ finish:
+	mysql_close(con);
+	free(config.username);
+	free(config.password);
+	free(config.dbname);
+	return result;
 }

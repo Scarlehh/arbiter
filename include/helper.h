@@ -11,4 +11,7 @@ struct dbconfig
 void
 get_config(char *filename, struct dbconfig* configstruct);
 
+int
+get_mysql_cert(char* configfile, char* domain, char** cert);
+
 #endif
