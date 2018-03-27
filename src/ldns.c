@@ -21,8 +21,7 @@ usage(FILE *fp, char *prog) {
 	fprintf(fp, "-4\t\tonly use IPv4\n");
 	fprintf(fp, "-6\t\tonly use IPv6\n");
 	fprintf(fp, "-f\t\tfull; get all rrsets instead of only a list of names and types\n");
-	fprintf(fp, "-t <rrtype>\t\tLook up this record");
-	fprintf(fp, "-s <name>\t\tStart from this name\n");
+	fprintf(fp, "-t <rrtype>\t\tLook up this record\n");
 	fprintf(fp, "-v <verbosity>\t\tVerbosity level [1-5]\n");
 	fprintf(fp, "-version\tShow version and exit\n");
 	fprintf(fp, "@<nameserver>\t\tUse this nameserver\n");
@@ -82,17 +81,6 @@ main(int argc, char *argv[]) {
 					}
 				} else {
 					printf("Missing argument for -t\n");
-					exit(1);
-				}
-				i++;
-			} else if (strncmp(argv[i], "-s", 3) == 0) {
-				if (i + 1 < argc) {
-					if (ldns_str2rdf_dname(&startpoint, argv[i + 1]) != LDNS_STATUS_OK) {
-						printf("Bad start point name: %s\n", argv[i + 1]);
-						exit(1);
-					}
-				} else {
-					printf("Missing argument for -s\n");
 					exit(1);
 				}
 				i++;
