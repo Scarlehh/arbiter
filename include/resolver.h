@@ -14,6 +14,10 @@ int
 create_verifier(ldns_dnssec_data_chain** chain, ldns_dnssec_trust_tree** tree,
 				ldns_resolver* res, ldns_rr_list* rrlist, ldns_pkt* pkt);
 
-int verify(ldns_dnssec_trust_tree* tree, ldns_rr_list* trustedkeys)
+int
+verify(ldns_dnssec_trust_tree* tree, ldns_rr_list* trustedkeys);
+
+int
+trustedkey_fromkey(ldns_rr_list* rrset_trustedkeys, char* key, char* domain, int ksk);
 
 #endif

@@ -151,20 +151,22 @@ main(int argc, char *argv[]) {
 		exit(1);
 	}
 
+	// Create resolver
 	ldns_resolver *res;
 	int result = create_resolver(&res, serv);
 	if (result != EXIT_SUCCESS)
 		goto exit;
 
+	// Configure resolver
 	ldns_resolver_set_dnssec(res, true);
 	ldns_resolver_set_dnssec_cd(res, true);
 	ldns_resolver_set_ip6(res, fam);
-
 	if (!res) {
 		result = 2;
 		goto exit;
 	}
 
+	// Make query
 	ldns_pkt* pkt;
 	query(&pkt, res, domain, rtype);
 	ldns_rr_list* rrset =
@@ -179,25 +181,26 @@ main(int argc, char *argv[]) {
 		}
 	}
 
+	// Create dnssec trust tree
 	ldns_dnssec_data_chain* chain;
 	ldns_dnssec_trust_tree* tree;
 	create_verifier(&chain, &tree, res, rrset, pkt);
 
-	ldns_pkt* p;
-	query(&p, res, ldns_dname_new_frm_str("."), LDNS_RR_TYPE_DNSKEY);
-	ldns_rr_list* rrset_trustedkeys =
-		ldns_pkt_rr_list_by_type(p, LDNS_RR_TYPE_DNSKEY, LDNS_SECTION_ANSWER);
-	if (!rrset) {
-		fprintf(stderr, "No DNSKEY records at root to trust\n");
-		goto exit;
-	}
+	// Get dnskey from database
+	char* key;
+	get_key(&key, arg_domain);
+	ldns_rr_list* rrset_trustedkeys = ldns_rr_list_new();
+	trustedkey_fromkey(rrset_trustedkeys, key+36, arg_domain, true);
 
+	// Verify chain of trust
 	verify(tree, rrset_trustedkeys);
+
+	// Cleanup
+	free(key);
+	ldns_rr_list_deep_free(rrset_trustedkeys);
 
 	ldns_dnssec_trust_tree_free(tree);
 	ldns_dnssec_data_chain_deep_free(chain);
-	ldns_rr_list_deep_free(rrset_trustedkeys);
-	ldns_pkt_free(p);
 
 	ldns_rr_list_deep_free(rrset);
 	ldns_pkt_free(pkt);

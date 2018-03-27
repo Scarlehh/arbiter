@@ -211,3 +211,27 @@ verify(ldns_dnssec_trust_tree* tree, ldns_rr_list* trustedkeys) {
 	}
 	return EXIT_FAILURE;
 }
+
+int
+trustedkey_fromkey(ldns_rr_list* rrset_trustedkeys, char* key, char* domain,
+				   int ksk) {
+	char* rr_str;
+	if (ksk)
+		rr_str = " IN DNSKEY 257 3 13 ";
+	else
+		rr_str = " IN DNSKEY 256 3 13 ";
+	int len_dnskey = strlen(key) + strlen(domain) + strlen(rr_str) + 1;
+	const char* dnskey_str = malloc(sizeof(char) * len_dnskey);
+	snprintf(dnskey_str, len_dnskey, "%s%s%s", domain, rr_str, key);
+
+	ldns_rr* rr_trustedkey;
+	int result = ldns_rr_new_frm_str(&rr_trustedkey, dnskey_str, 0, NULL, NULL);
+	free(dnskey_str);
+	if (result != LDNS_STATUS_OK) {
+		fprintf(stderr, "Couldn't make trusted DNSKEY record from database key: %d\n", result);
+		return EXIT_FAILURE;
+	}
+
+	result = ldns_rr_list_push_rr(rrset_trustedkeys, rr_trustedkey);
+	return EXIT_SUCCESS;
+}
