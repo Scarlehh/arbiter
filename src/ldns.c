@@ -5,6 +5,7 @@
 
 #include <ldns/ldns.h>
 #include <ldns/resolver.h>
+#include <ldns/dnssec_verify.h>
 
 #define LDNS_RESOLV_INETANY		0
 #define LDNS_RESOLV_INET		1
@@ -151,7 +152,7 @@ main(int argc, char *argv[]) {
 	}
 
 	ldns_resolver *res;
-	int result = create_resolver(serv, &res);
+	int result = create_resolver(&res, serv);
 	if (result != EXIT_SUCCESS)
 		goto exit;
 
@@ -164,9 +165,45 @@ main(int argc, char *argv[]) {
 		goto exit;
 	}
 
-	ldns_pkt* p;
-	query(res, domain, rtype, &p);
+	ldns_pkt* pkt;
+	query(&pkt, res, domain, rtype);
+	ldns_rr_list* rrset =
+		ldns_pkt_rr_list_by_type(pkt, rtype, LDNS_SECTION_ANSWER);
+	if (!rrset) {
+		rrset = ldns_pkt_rr_list_by_type(pkt, rtype,
+										 LDNS_SECTION_AUTHORITY);
+		if (!rrset) {
+			fprintf(stderr, "No records for given type\n");
+			result = 3;
+			goto exit;
+		}
+	}
 
+	ldns_dnssec_data_chain* chain;
+	ldns_dnssec_trust_tree* tree;
+	create_verifier(&chain, &tree, res, rrset, pkt);
+
+	ldns_pkt* p;
+	query(&p, res, ldns_dname_new_frm_str("."), LDNS_RR_TYPE_DNSKEY);
+	ldns_rr_list* rrset_trustedkeys =
+		ldns_pkt_rr_list_by_type(p, LDNS_RR_TYPE_DNSKEY, LDNS_SECTION_ANSWER);
+	if (!rrset) {
+		fprintf(stderr, "No DNSKEY records at root to trust\n");
+		goto exit;
+	}
+
+	verify(tree, rrset_trustedkeys);
+
+	ldns_dnssec_trust_tree_free(tree);
+	ldns_dnssec_data_chain_deep_free(chain);
+	ldns_rr_list_deep_free(rrset_trustedkeys);
+	ldns_pkt_free(p);
+
+	ldns_rr_list_deep_free(rrset);
+	ldns_pkt_free(pkt);
+
+	ldns_rdf_deep_free(domain);
+	ldns_resolver_deep_free(res);
  exit:
 	return result;
 }
