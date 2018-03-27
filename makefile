@@ -2,15 +2,11 @@
 CC     = gcc
 CFLAGS = -g -O2
 LFLAGS  = \
-	/usr/lib/libirs.so \
-	/usr/lib/libdns.so \
-	/usr/lib/libisccfg.so \
-	/usr/lib/libisc.so \
-	/usr/lib/libxml2.so \
+	/usr/lib/libldns.so \
 	/usr/lib/libmysqlclient.so
-LIBS = -lcrypto -lpthread -lxml2 -lgssapi_krb5 -lkrb5
+
+LIBS = -lcrypto -lpthread
 INCLUDES = \
-	-D_GNU_SOURCE \
 	-I include
 
 MKBIN   = mkdir -p $(BIN)
@@ -25,16 +21,16 @@ UTIL = util/
 
 # Main Files
 _OBJ_RES =\
-	main.o \
-	resolve.o \
+	ldns.o \
+	resolver.o \
 	helper.o
 OBJ_RES  = $(patsubst %,$(BUILD)%,$(_OBJ_RES))
 
 # Test Files
 _OBJ_TEST_RES =\
-	resolve.o \
-	helper.o \
-	test_resolve.o
+	test_resolve.o \
+	resolver.o \
+	helper.o
 OBJ_TEST_RES  = $(patsubst %,$(BUILD)%,$(_OBJ_TEST_RES))
 
 # Util Files
