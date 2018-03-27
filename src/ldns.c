@@ -1,10 +1,10 @@
+#include "resolver.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 
 #include <ldns/ldns.h>
 #include <ldns/resolver.h>
-
-#include "resolver.h"
 
 #define LDNS_RESOLV_INETANY		0
 #define LDNS_RESOLV_INET		1
@@ -29,7 +29,6 @@ usage(FILE *fp, char *prog) {
 
 int
 main(int argc, char *argv[]) {
-	int result = 0;
 	int full = 0;
 	uint8_t fam = LDNS_RESOLV_INETANY;
 
@@ -126,7 +125,20 @@ main(int argc, char *argv[]) {
 	}
 
 	ldns_resolver *res;
-	create_resolver(serv, &res);
+	int result = create_resolver(serv, &res);
+	if (result != EXIT_SUCCESS)
+		goto exit;
+
+	ldns_resolver_set_dnssec(res, true);
+	ldns_resolver_set_dnssec_cd(res, true);
+	ldns_resolver_set_ip6(res, fam);
+
+	if (!res) {
+		result = 2;
+		goto exit;
+	}
+
+	query(res, domain, LDNS_RR_TYPE_A);
 
  exit:
 	return result;

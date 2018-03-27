@@ -2,6 +2,9 @@
 
 #include <ldns/ldns.h>
 #include <ldns/resolver.h>
+#include <ldns/rr.h>
+
+extern int verbosity;
 
 int
 create_resolver(char* serv, ldns_resolver** res) {
@@ -69,4 +72,21 @@ create_resolver(char* serv, ldns_resolver** res) {
 		}
 	}
 	return EXIT_SUCCESS;
+}
+
+int
+query(ldns_resolver* res, char* domain, ldns_rr_type type, ldns_pkt* p) {
+	if (verbosity >= 3) {
+		printf("\nQuerying for: ");
+		ldns_rdf_print(stdout, domain);
+		printf("\n");
+	}
+	p = ldns_resolver_query(res, domain, type, LDNS_RR_CLASS_IN, LDNS_RD);
+	if (verbosity >= 5) {
+		if (p) {
+			ldns_pkt_print(stdout, p);
+		} else {
+			fprintf(stdout, "No Packet Received from ldns_resolver_query()\n");
+		}
+	}
 }
