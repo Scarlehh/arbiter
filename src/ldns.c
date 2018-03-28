@@ -4,8 +4,6 @@
 #include <stdlib.h>
 
 #include <ldns/ldns.h>
-#include <ldns/resolver.h>
-#include <ldns/dnssec_verify.h>
 
 #define LDNS_RESOLV_INETANY		0
 #define LDNS_RESOLV_INET		1
@@ -174,17 +172,31 @@ main(int argc, char *argv[]) {
 	ldns_dnssec_trust_tree* tree;
 	create_verifier(&chain, &tree, res, rrset, pkt);
 
-	// Get dnskey from database
-	char* key;
-	get_key(&key, arg_domain);
+	// Add trusted keys
+	char* parent = arg_domain;
+	char* p = parent;
 	ldns_rr_list* rrset_trustedkeys = ldns_rr_list_new();
-	trustedkey_fromkey(rrset_trustedkeys, key+36, arg_domain, true);
+	while(p != NULL) {
+		char* key = NULL;
+		get_key(&key, p);
+		if (key != NULL) {
+			if (verbosity >= 5) {
+				fprintf(stderr, "Key for %s is %s\n", p, key);
+			}
+			trustedkey_fromkey(rrset_trustedkeys, key+36, p, true);
+			free(key);
+		}
+		p = strstr(p+1, ".");
+		// Check root
+		if (p != NULL && strlen(p) > 1) {
+			p+=1;
+		}
+	}
 
 	// Verify chain of trust
 	verify(tree, rrset_trustedkeys);
 
 	// Cleanup
-	free(key);
 	ldns_rr_list_deep_free(rrset_trustedkeys);
 
 	ldns_dnssec_trust_tree_free(tree);
