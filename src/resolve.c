@@ -236,6 +236,9 @@ trustedkey_fromkey(ldns_rr_list* rrset_trustedkeys, char* key, char* domain,
 	}
 
 	result = ldns_rr_list_push_rr(rrset_trustedkeys, rr_trustedkey);
+	if (result != true) {
+		fprintf(stderr, "Couldn't push resource record to trusted key set: %d\n", result);
+	}
 	return LDNS_STATUS_OK;
 }
 
