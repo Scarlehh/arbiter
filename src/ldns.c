@@ -18,8 +18,8 @@ usage(FILE *fp, char *prog) {
 	fprintf(fp, "OPTIONS:\n");
 	fprintf(fp, "-4\t\tonly use IPv4\n");
 	fprintf(fp, "-6\t\tonly use IPv6\n");
-	fprintf(fp, "-f\t\tfull; get all rrsets instead of only a list of names and types\n");
 	fprintf(fp, "-t <rrtype>\t\tLook up this record\n");
+	fprintf(fp, "-k <key origin> -K <key string>\t\tAdd key to trusted keys\n");
 	fprintf(fp, "-v <verbosity>\t\tVerbosity level [1-5]\n");
 	fprintf(fp, "-version\tShow version and exit\n");
 	fprintf(fp, "@<nameserver>\t\tUse this nameserver\n");
@@ -28,7 +28,7 @@ usage(FILE *fp, char *prog) {
 
 int
 main(int argc, char *argv[]) {
-	int full = 0;
+	int result;
 	uint8_t fam = LDNS_RESOLV_INETANY;
 
 	char *arg_end_ptr = NULL;
@@ -39,6 +39,8 @@ main(int argc, char *argv[]) {
 	ldns_rdf *startpoint = NULL;
 
 	ldns_rr_type rtype = LDNS_RR_TYPE_A;
+
+	ldns_rr_list* rrset_trustedkeys = ldns_rr_list_new();
 
 	if (argc < 2) {
 		usage(stdout, argv[0]);
@@ -57,8 +59,6 @@ main(int argc, char *argv[]) {
 					exit(1);
 				}
 				fam = LDNS_RESOLV_INET6;
-			} else if (strncmp(argv[i], "-f", 3) == 0) {
-				full = true;
 			} else if (strncmp(argv[i], "-t", 3) == 0) {
 				if (i + 1 < argc) {
 					if (!strcmp(argv[i + 1], "A")) {
@@ -82,6 +82,28 @@ main(int argc, char *argv[]) {
 					exit(1);
 				}
 				i++;
+			} else if (strncmp(argv[i], "-k", 3) == 0) {
+				if (i + 1 < argc) {
+					char* origin = argv[i + 1];
+					i+=2;
+					if ((strncmp(argv[i], "-K", 3) == 0) && (i + 1 < argc)) {
+						char* key = argv[i + 1];
+						result = trustedkey_fromkey(rrset_trustedkeys, key,
+													origin, 1);
+						if (result != LDNS_STATUS_OK)
+							goto exit;
+					} else {
+						printf("Missing argument for -K\n");
+						exit(1);
+					}
+				} else {
+					printf("Missing argument for -k\n");
+					exit(1);
+				}
+				i++;
+			} else if (strncmp(argv[i], "-K", 3) == 0) {
+				printf("Missing argument for -k\n");
+				exit(1);
 			} else if (strncmp(argv[i], "-v", 3) == 0) {
 				if (i + 1 < argc) {
 					verbosity = strtol(argv[i+1], &arg_end_ptr, 10);
@@ -139,7 +161,7 @@ main(int argc, char *argv[]) {
 
 	// Create resolver
 	ldns_resolver *res;
-	int result = create_resolver(&res, serv);
+	result = create_resolver(&res, serv);
 	if (result != EXIT_SUCCESS)
 		goto exit;
 
@@ -173,7 +195,6 @@ main(int argc, char *argv[]) {
 	// Create dnssec trust tree
 	ldns_dnssec_data_chain* chain;
 	ldns_dnssec_trust_tree* tree;
-	ldns_rr_list* rrset_trustedkeys = ldns_rr_list_new();
 	result = create_verifier(&chain, &tree, res, rrset, pkt);
 	if (result != LDNS_STATUS_OK)
 		goto cleanup;
@@ -188,8 +209,6 @@ main(int argc, char *argv[]) {
 
 	// Cleanup
  cleanup:
-	ldns_rr_list_deep_free(rrset_trustedkeys);
-
 	ldns_dnssec_trust_tree_free(tree);
 	ldns_dnssec_data_chain_deep_free(chain);
 
@@ -199,5 +218,7 @@ main(int argc, char *argv[]) {
 	ldns_rdf_deep_free(domain);
 	ldns_resolver_deep_free(res);
  exit:
+	ldns_rr_list_deep_free(rrset_trustedkeys);
+
 	return result;
 }
