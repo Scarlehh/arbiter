@@ -1,5 +1,5 @@
-#ifdef RESOLVER_H
-#define RESOLVER_H
+#ifdef RESOLVE_H
+#define RESOLVE_H
 
 int
 create_resolver(ldns_resolver** res, char* serv);

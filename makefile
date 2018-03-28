@@ -22,14 +22,14 @@ UTIL = util/
 # Main Files
 _OBJ_RES =\
 	ldns.o \
-	resolver.o \
+	resolve.o \
 	helper.o
 OBJ_RES  = $(patsubst %,$(BUILD)%,$(_OBJ_RES))
 
 # Test Files
 _OBJ_TEST_RES =\
 	test_resolve.o \
-	resolver.o \
+	resolve.o \
 	helper.o
 OBJ_TEST_RES  = $(patsubst %,$(BUILD)%,$(_OBJ_TEST_RES))
 

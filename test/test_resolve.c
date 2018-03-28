@@ -25,7 +25,7 @@
  *                      asserts       5       5       5       0
  */
 
-#include "resolver.h"
+#include "resolve.h"
 #include "helper.h"
 #include "CUnit/Basic.h"
 

@@ -1,4 +1,4 @@
-#include "resolver.h"
+#include "resolve.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -163,6 +163,9 @@ main(int argc, char *argv[]) {
 		if (!rrset) {
 			fprintf(stderr, "No records for given type\n");
 			result = 3;
+			ldns_pkt_free(pkt);
+			ldns_rdf_deep_free(domain);
+			ldns_resolver_deep_free(res);
 			goto exit;
 		}
 	}
@@ -170,16 +173,21 @@ main(int argc, char *argv[]) {
 	// Create dnssec trust tree
 	ldns_dnssec_data_chain* chain;
 	ldns_dnssec_trust_tree* tree;
-	create_verifier(&chain, &tree, res, rrset, pkt);
+	ldns_rr_list* rrset_trustedkeys = ldns_rr_list_new();
+	result = create_verifier(&chain, &tree, res, rrset, pkt);
+	if (result != LDNS_STATUS_OK)
+		goto cleanup;
 
 	// Populate trusted key list
-	ldns_rr_list* rrset_trustedkeys = ldns_rr_list_new();
-	populate_trustedkeys(rrset_trustedkeys, arg_domain);
+	result = populate_trustedkeys(rrset_trustedkeys, arg_domain);
+	if (result != LDNS_STATUS_OK)
+		goto cleanup;
 
 	// Verify chain of trust
 	verify(tree, rrset_trustedkeys);
 
 	// Cleanup
+ cleanup:
 	ldns_rr_list_deep_free(rrset_trustedkeys);
 
 	ldns_dnssec_trust_tree_free(tree);

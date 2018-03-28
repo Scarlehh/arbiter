@@ -7,6 +7,8 @@
 
 #include <mysql/mysql.h>
 
+#include <ldns/ldns.h>
+
 #define MAXBUF 1024
 #define DELIM "="
 
@@ -49,7 +51,7 @@ get_mysql_cert(char* configfile, char* domain, char** cert) {
 	MYSQL* con = mysql_init(NULL);
 	if (con == NULL) {
 		fprintf(stderr, "mysql_init() failed\n");
-		return EXIT_FAILURE;
+		return LDNS_STATUS_ERR;
 	}
 
 	int result;
@@ -59,7 +61,7 @@ get_mysql_cert(char* configfile, char* domain, char** cert) {
 	if (mysql_real_connect(con, "localhost", config.username, config.password,
 						   config.dbname, 0, NULL, 0) == NULL) {
 		fprintf(stderr, "%s\n", mysql_error(con));
-		result = EXIT_FAILURE;
+		result = LDNS_STATUS_ERR;
 		goto finish;
 	}
 
@@ -67,14 +69,14 @@ get_mysql_cert(char* configfile, char* domain, char** cert) {
 	sprintf(query, "SELECT cert FROM certificates where domain='%s'", domain);
 	if (mysql_query(con, query)) {
 		fprintf(stderr, "%s\n", mysql_error(con));
-		result = EXIT_FAILURE;
+		result = LDNS_STATUS_ERR;
 		goto finish;
 	}
 
 	MYSQL_RES* mysql_result = mysql_store_result(con);
 	if (mysql_result == NULL) {
 		fprintf(stderr, "%s\n", mysql_error(con));
-		result = EXIT_FAILURE;
+		result = LDNS_STATUS_ERR;
 		goto finish;
 	}
 
@@ -83,10 +85,10 @@ get_mysql_cert(char* configfile, char* domain, char** cert) {
 		if (verbosity >= 2)
 			fprintf(stderr, "Domain %s is not registered in database\n",
 					domain);
-		result = EXIT_FAILURE;
+		result = LDNS_STATUS_ERR;
 		goto finish;
 	} else if (row[0] == NULL) {
-		result = EXIT_SUCCESS;
+		result = LDNS_STATUS_OK;
 		*cert = NULL;
 		goto finish;
 	}
@@ -94,7 +96,7 @@ get_mysql_cert(char* configfile, char* domain, char** cert) {
 	*cert = malloc(sizeof(char)*(strlen(row[0])+1));
 	strncpy(*cert, *row, strlen(row[0])+1);
 	mysql_free_result(mysql_result);
-	result = EXIT_SUCCESS;
+	result = LDNS_STATUS_OK;
 
  finish:
 	mysql_close(con);
