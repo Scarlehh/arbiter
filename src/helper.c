@@ -80,7 +80,7 @@ get_mysql_cert(char* configfile, char* domain, char** cert) {
 
 	MYSQL_ROW row = mysql_fetch_row(mysql_result);
 	if (row == 0) {
-		if (verbosity >= 1)
+		if (verbosity >= 2)
 			fprintf(stderr, "Domain %s is not registered in database\n",
 					domain);
 		result = EXIT_FAILURE;

@@ -179,9 +179,10 @@ create_verifier(ldns_dnssec_data_chain** chain, ldns_dnssec_trust_tree** tree,
 	if (!tree) {
 		fprintf(stderr, "Couldn't create DNSSEC trust tree\n");
 		return EXIT_FAILURE;
-	} else if (verbosity >= 2) {
+	} else if (verbosity >= 1) {
 		printf("\n\nDNSSEC Trust tree:\n");
 		ldns_dnssec_trust_tree_print(stdout, *tree, 0, true);
+		printf("\n");
 	}
 	return EXIT_SUCCESS;
 }
@@ -224,6 +225,9 @@ trustedkey_fromkey(ldns_rr_list* rrset_trustedkeys, char* key, char* domain,
 	int len_dnskey = strlen(key) + strlen(domain) + strlen(rr_str) + 1;
 	const char* dnskey_str = malloc(sizeof(char) * len_dnskey);
 	snprintf(dnskey_str, len_dnskey, "%s%s%s", domain, rr_str, key);
+	if (verbosity >= 5) {
+		fprintf(stderr, "DNSKEY string: %s\n", dnskey_str);
+	}
 
 	ldns_rr* rr_trustedkey;
 	int result = ldns_rr_new_frm_str(&rr_trustedkey, dnskey_str, 0, NULL, NULL);
