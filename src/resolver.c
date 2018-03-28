@@ -240,3 +240,25 @@ trustedkey_fromkey(ldns_rr_list* rrset_trustedkeys, char* key, char* domain,
 	result = ldns_rr_list_push_rr(rrset_trustedkeys, rr_trustedkey);
 	return EXIT_SUCCESS;
 }
+
+int
+populate_trustedkeys(ldns_rr_list* rrset_trustedkeys, char* domain) {
+	char* p = domain;
+	while(p != NULL) {
+		char* key = NULL;
+		get_key(&key, p);
+		if (key != NULL) {
+			if (verbosity >= 5) {
+				fprintf(stderr, "Key for %s is %s\n", p, key);
+			}
+			trustedkey_fromkey(rrset_trustedkeys, key+36, p, true);
+			free(key);
+		}
+		p = strstr(p+1, ".");
+		// Check root
+		if (p != NULL && strlen(p) > 1) {
+			p+=1;
+		}
+	}
+	return EXIT_SUCCESS;
+}

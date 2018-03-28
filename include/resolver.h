@@ -21,4 +21,7 @@ int
 trustedkey_fromkey(ldns_rr_list* rrset_trustedkeys, char* key, char* domain,
 				   int ksk);
 
+int
+populate_trustedkeys(ldns_rr_list* rrset_trustedkeys, char* domain);
+
 #endif

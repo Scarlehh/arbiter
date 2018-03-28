@@ -172,26 +172,9 @@ main(int argc, char *argv[]) {
 	ldns_dnssec_trust_tree* tree;
 	create_verifier(&chain, &tree, res, rrset, pkt);
 
-	// Add trusted keys
-	char* parent = arg_domain;
-	char* p = parent;
+	// Populate trusted key list
 	ldns_rr_list* rrset_trustedkeys = ldns_rr_list_new();
-	while(p != NULL) {
-		char* key = NULL;
-		get_key(&key, p);
-		if (key != NULL) {
-			if (verbosity >= 5) {
-				fprintf(stderr, "Key for %s is %s\n", p, key);
-			}
-			trustedkey_fromkey(rrset_trustedkeys, key+36, p, true);
-			free(key);
-		}
-		p = strstr(p+1, ".");
-		// Check root
-		if (p != NULL && strlen(p) > 1) {
-			p+=1;
-		}
-	}
+	populate_trustedkeys(rrset_trustedkeys, arg_domain);
 
 	// Verify chain of trust
 	verify(tree, rrset_trustedkeys);
