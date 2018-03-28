@@ -10,6 +10,8 @@
 #define MAXBUF 1024
 #define DELIM "="
 
+extern verbosity;
+
 void
 get_config(char *filename, struct dbconfig* configstruct)
 {
@@ -78,7 +80,9 @@ get_mysql_cert(char* configfile, char* domain, char** cert) {
 
 	MYSQL_ROW row = mysql_fetch_row(mysql_result);
 	if (row == 0) {
-		fprintf(stderr, "Domain is not registered in database\n");
+		if (verbosity >= 1)
+			fprintf(stderr, "Domain %s is not registered in database\n",
+					domain);
 		result = EXIT_FAILURE;
 		goto finish;
 	} else if (row[0] == NULL) {

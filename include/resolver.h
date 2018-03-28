@@ -18,6 +18,7 @@ int
 verify(ldns_dnssec_trust_tree* tree, ldns_rr_list* trustedkeys);
 
 int
-trustedkey_fromkey(ldns_rr_list* rrset_trustedkeys, char* key, char* domain, int ksk);
+trustedkey_fromkey(ldns_rr_list* rrset_trustedkeys, char* key, char* domain,
+				   int ksk);
 
 #endif
