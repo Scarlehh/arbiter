@@ -247,13 +247,15 @@ populate_trustedkeys(ldns_rr_list* rrset_trustedkeys, char* domain) {
 	char* p = domain;
 	while(p != NULL) {
 		char* key = NULL;
-		get_key(&key, p, 1);
-		if (key != NULL) {
-			if (verbosity >= 5) {
-				fprintf(stderr, "Key for %s is %s\n", p, key);
+		for(int i = 0; i <= 1; i++) {
+			get_key(&key, p, i);
+			if (key != NULL) {
+				if (verbosity >= 5) {
+					fprintf(stderr, "Key for %s is %s\n", p, key);
+				}
+				trustedkey_fromkey(rrset_trustedkeys, key+36, p, true);
+				free(key);
 			}
-			trustedkey_fromkey(rrset_trustedkeys, key+36, p, true);
-			free(key);
 		}
 		p = strstr(p+1, ".");
 		// Check root
