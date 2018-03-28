@@ -94,9 +94,9 @@ query(ldns_pkt** p, ldns_resolver* res, char* domain, ldns_rr_type type) {
 }
 
 int
-get_key(char** keystr, char* keynamestr) {
+get_key(char** keystr, char* keynamestr, int ksk) {
 	char* cert;
-	int result = get_mysql_cert(CONFIG_FILE, keynamestr, &cert);
+	int result = get_mysql_cert(CONFIG_FILE, keynamestr, &cert, ksk);
 	if (result != LDNS_STATUS_OK) {
 		if (verbosity >= 2)
 			fprintf(stderr, "Failed to get certificate from the database: %u\n",
@@ -247,7 +247,7 @@ populate_trustedkeys(ldns_rr_list* rrset_trustedkeys, char* domain) {
 	char* p = domain;
 	while(p != NULL) {
 		char* key = NULL;
-		get_key(&key, p);
+		get_key(&key, p, 1);
 		if (key != NULL) {
 			if (verbosity >= 5) {
 				fprintf(stderr, "Key for %s is %s\n", p, key);

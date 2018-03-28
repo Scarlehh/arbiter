@@ -47,7 +47,7 @@ get_config(char *filename, struct dbconfig* configstruct)
 }
 
 int
-get_mysql_cert(char* configfile, char* domain, char** cert) {
+get_mysql_cert(char* configfile, char* domain, char** cert, int ksk) {
 	MYSQL* con = mysql_init(NULL);
 	if (con == NULL) {
 		fprintf(stderr, "mysql_init() failed\n");
@@ -66,7 +66,7 @@ get_mysql_cert(char* configfile, char* domain, char** cert) {
 	}
 
 	char query[MAXBUF];
-	sprintf(query, "SELECT cert FROM certificates where domain='%s'", domain);
+	sprintf(query, "SELECT cert FROM certificates WHERE domain='%s' AND ksk=%d", domain, ksk);
 	if (mysql_query(con, query)) {
 		fprintf(stderr, "%s\n", mysql_error(con));
 		result = LDNS_STATUS_ERR;

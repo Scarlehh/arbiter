@@ -8,7 +8,7 @@ int
 query(ldns_pkt** p, ldns_resolver* res, ldns_rdf* domain, ldns_rr_type rtype);
 
 int
-get_key(char** keystr, char* keynamestr);
+get_key(char** keystr, char* keynamestr, int ksk);
 
 int
 create_verifier(ldns_dnssec_data_chain** chain, ldns_dnssec_trust_tree** tree,
