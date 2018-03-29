@@ -168,7 +168,7 @@ verify_trust(ldns_dnssec_data_chain** chain, ldns_dnssec_trust_tree** tree,
 	if (!(*chain)) {
 		fprintf(stderr, "Couldn't create DNSSEC data chain\n");
 		return LDNS_STATUS_ERR;
-	} else if (verbosity >= 4) {
+	} else if (verbosity >= 1) {
 		printf("\n\nDNSSEC Data Chain:\n");
 		ldns_dnssec_data_chain_print(stdout, *chain);
 	}
@@ -248,6 +248,7 @@ addto_trustedkeys(ldns_rr_list* rrset_trustedkeys, ldns_rr* rr_trustedkey) {
 
 int
 populate_trustedkeys(ldns_rr_list* rrset_trustedkeys, char* domain) {
+	int result;
 	char* p = domain;
 	while(p != NULL) {
 		char* key = NULL;
@@ -258,8 +259,10 @@ populate_trustedkeys(ldns_rr_list* rrset_trustedkeys, char* domain) {
 					fprintf(stderr, "Key for %s is %s\n", p, key);
 				}
 				ldns_rr* rr_trustedkey;
-				trustedkey_fromkey(&rr_trustedkey, key+36, p, i);
-				addto_trustedkeys(rrset_trustedkeys, rr_trustedkey);
+				result = trustedkey_fromkey(&rr_trustedkey, key+36, p, i);
+				if (result == LDNS_STATUS_OK) {
+					addto_trustedkeys(rrset_trustedkeys, rr_trustedkey);
+				}
 				free(key);
 			}
 		}
