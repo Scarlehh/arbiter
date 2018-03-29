@@ -162,8 +162,8 @@ get_key(char** keystr, char* keynamestr, int ksk) {
 }
 
 int
-create_verifier(ldns_dnssec_data_chain** chain, ldns_dnssec_trust_tree** tree,
-				ldns_resolver* res, ldns_rr_list* rrlist, ldns_pkt* pkt) {
+verify_trust(ldns_dnssec_data_chain** chain, ldns_dnssec_trust_tree** tree,
+			 ldns_resolver* res, ldns_rr_list* rrlist, ldns_pkt* pkt) {
 	*chain = ldns_dnssec_build_data_chain(res, NULL, rrlist, pkt, NULL);
 	if (!chain) {
 		fprintf(stderr, "Couldn't create DNSSEC data chain\n");
@@ -177,7 +177,7 @@ create_verifier(ldns_dnssec_data_chain** chain, ldns_dnssec_trust_tree** tree,
 	if (!tree) {
 		fprintf(stderr, "Couldn't create DNSSEC trust tree\n");
 		return LDNS_STATUS_ERR;
-	} else if (verbosity >= 1) {
+	} else if (verbosity >= 0) {
 		printf("\n\nDNSSEC Trust tree:\n");
 		ldns_dnssec_trust_tree_print(stdout, *tree, 0, true);
 		printf("\n");
@@ -186,7 +186,7 @@ create_verifier(ldns_dnssec_data_chain** chain, ldns_dnssec_trust_tree** tree,
 }
 
 int
-verify(ldns_dnssec_trust_tree* tree, ldns_rr_list* trustedkeys) {
+check_trustedkeys(ldns_dnssec_trust_tree* tree, ldns_rr_list* trustedkeys) {
 	if (ldns_rr_list_rr_count(trustedkeys) > 0) {
 		ldns_status tree_result =
 			ldns_dnssec_trust_tree_contains_keys(tree, trustedkeys);
@@ -202,7 +202,7 @@ verify(ldns_dnssec_trust_tree* tree, ldns_rr_list* trustedkeys) {
 			}
 			return LDNS_STATUS_CRYPTO_NO_TRUSTED_DNSKEY;
 		} else {
-			printf("Chain verified.\n");
+			printf("Chain verified.\n\n");
 			return LDNS_STATUS_OK;
 		}
 	}
@@ -213,7 +213,7 @@ verify(ldns_dnssec_trust_tree* tree, ldns_rr_list* trustedkeys) {
 }
 
 int
-trustedkey_fromkey(ldns_rr_list* rrset_trustedkeys, char* key, char* domain,
+trustedkey_fromkey(ldns_rr** rr_trustedkey, char* key, char* domain,
 				   int ksk) {
 	char* rr_str;
 	if (ksk)
@@ -223,19 +223,23 @@ trustedkey_fromkey(ldns_rr_list* rrset_trustedkeys, char* key, char* domain,
 	int len_dnskey = strlen(key) + strlen(domain) + strlen(rr_str) + 1;
 	const char* dnskey_str = malloc(sizeof(char) * len_dnskey);
 	snprintf(dnskey_str, len_dnskey, "%s%s%s", domain, rr_str, key);
-	if (verbosity >= 5) {
+	if (verbosity >= 3) {
 		fprintf(stderr, "DNSKEY string: %s\n", dnskey_str);
 	}
 
-	ldns_rr* rr_trustedkey;
-	int result = ldns_rr_new_frm_str(&rr_trustedkey, dnskey_str, 0, NULL, NULL);
+	int result = ldns_rr_new_frm_str(rr_trustedkey, dnskey_str, 0, NULL, NULL);
 	free(dnskey_str);
 	if (result != LDNS_STATUS_OK) {
 		fprintf(stderr, "Couldn't make trusted DNSKEY record from database key: %d\n", result);
-		return LDNS_STATUS_CRYPTO_NO_DNSKEY;
+		return result;
 	}
 
-	result = ldns_rr_list_push_rr(rrset_trustedkeys, rr_trustedkey);
+	return LDNS_STATUS_OK;
+}
+
+int
+addto_trustedkeys(ldns_rr_list* rrset_trustedkeys, ldns_rr* rr_trustedkey) {
+	int result = ldns_rr_list_push_rr(rrset_trustedkeys, rr_trustedkey);
 	if (result != true) {
 		fprintf(stderr, "Couldn't push resource record to trusted key set: %d\n", result);
 	}
@@ -253,7 +257,9 @@ populate_trustedkeys(ldns_rr_list* rrset_trustedkeys, char* domain) {
 				if (verbosity >= 5) {
 					fprintf(stderr, "Key for %s is %s\n", p, key);
 				}
-				trustedkey_fromkey(rrset_trustedkeys, key+36, p, true);
+				ldns_rr* rr_trustedkey;
+				trustedkey_fromkey(&rr_trustedkey, key+36, p, i);
+				addto_trustedkeys(rrset_trustedkeys, rr_trustedkey);
 				free(key);
 			}
 		}
@@ -264,4 +270,38 @@ populate_trustedkeys(ldns_rr_list* rrset_trustedkeys, char* domain) {
 		}
 	}
 	return LDNS_STATUS_OK;
+}
+
+int
+verify_rr(ldns_rr_list* rrset, ldns_pkt* pkt, char* domain) {
+	ldns_rr_list* rrsig =
+		ldns_pkt_rr_list_by_type(pkt, LDNS_RR_TYPE_RRSIG, LDNS_SECTION_ANSWER);
+	if (!rrsig) {
+		rrsig = ldns_pkt_rr_list_by_type(pkt, LDNS_RR_TYPE_RRSIG,
+										 LDNS_SECTION_AUTHORITY);
+		if (!rrsig) {
+			if (verbosity >= 1)
+				fprintf(stderr, "No resource record signature; DNSSEC enabled?\n");
+			return LDNS_STATUS_CRYPTO_NO_RRSIG;
+		}
+	}
+
+	char* key;
+	get_key(&key, domain, false);
+	if (key == NULL) {
+		return LDNS_STATUS_CRYPTO_NO_TRUSTED_DNSKEY;
+	}
+
+	ldns_rr* trustedkey;
+	int result = trustedkey_fromkey(&trustedkey, key+36, domain, false);
+	free(key);
+	if (result != LDNS_STATUS_OK) {
+		return result;
+	}
+
+	result = ldns_verify_rrsig(rrset,
+							   ldns_rr_list_rr(rrsig, 0),
+							   trustedkey);
+	printf("\n\nVerification result of %s %d: %s\n\n", domain, ldns_rr_list_type(rrset), ldns_get_errorstr_by_id(result));
+	return result;
 }

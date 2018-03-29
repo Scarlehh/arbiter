@@ -192,10 +192,12 @@ main(int argc, char *argv[]) {
 		}
 	}
 
-	// Create dnssec trust tree
+	verify_rr(rrset, pkt, arg_domain);
+
+	// Verify DNSSEC tree valid
 	ldns_dnssec_data_chain* chain;
 	ldns_dnssec_trust_tree* tree;
-	result = create_verifier(&chain, &tree, res, rrset, pkt);
+	result = verify_trust(&chain, &tree, res, rrset, pkt);
 	if (result != LDNS_STATUS_OK)
 		goto cleanup;
 
@@ -204,8 +206,8 @@ main(int argc, char *argv[]) {
 	if (result != LDNS_STATUS_OK)
 		goto cleanup;
 
-	// Verify chain of trust
-	verify(tree, rrset_trustedkeys);
+	// Check trusted keys exist in chain of trust
+	check_trustedkeys(tree, rrset_trustedkeys);
 
 	// Cleanup
  cleanup:

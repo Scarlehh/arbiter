@@ -11,17 +11,23 @@ int
 get_key(char** keystr, char* keynamestr, int ksk);
 
 int
-create_verifier(ldns_dnssec_data_chain** chain, ldns_dnssec_trust_tree** tree,
-				ldns_resolver* res, ldns_rr_list* rrlist, ldns_pkt* pkt);
+verify_trust(ldns_dnssec_data_chain** chain, ldns_dnssec_trust_tree** tree,
+			 ldns_resolver* res, ldns_rr_list* rrlist, ldns_pkt* pkt);
 
 int
-verify(ldns_dnssec_trust_tree* tree, ldns_rr_list* trustedkeys);
+check_trustedkeys(ldns_dnssec_trust_tree* tree, ldns_rr_list* trustedkeys);
 
 int
-trustedkey_fromkey(ldns_rr_list* rrset_trustedkeys, char* key, char* domain,
+trustedkey_fromkey(ldns_rr* rr_trustedkey, char* key, char* domain,
 				   int ksk);
 
 int
+addto_trustedkeys(ldns_rr_list* rrset_trustedkeys, ldns_rr* rr_trustedkey);
+
+int
 populate_trustedkeys(ldns_rr_list* rrset_trustedkeys, char* domain);
+
+int
+verify_rr(ldns_rr_list* rrset, ldns_pkt* pkt, char* domain);
 
 #endif

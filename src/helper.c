@@ -83,8 +83,8 @@ get_mysql_cert(char* configfile, char* domain, char** cert, int ksk) {
 	MYSQL_ROW row = mysql_fetch_row(mysql_result);
 	if (row == 0) {
 		if (verbosity >= 2)
-			fprintf(stderr, "Domain %s is not registered in database\n",
-					domain);
+			fprintf(stderr, "Domain %s %s is not registered in database\n",
+					domain, (ksk ? "KSK" : "ZSK"));
 		result = LDNS_STATUS_ERR;
 		goto finish;
 	} else if (row[0] == NULL) {
