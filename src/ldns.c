@@ -18,8 +18,9 @@ usage(FILE *fp, char *prog) {
 	fprintf(fp, "OPTIONS:\n");
 	fprintf(fp, "-4\t\tonly use IPv4\n");
 	fprintf(fp, "-6\t\tonly use IPv6\n");
+	fprintf(fp, "-c\t\tCheck database for keys\n");
 	fprintf(fp, "-t <rrtype>\t\tLook up this record\n");
-	fprintf(fp, "-k <key origin> -K <key string>\t\tAdd key to trusted keys\n");
+	fprintf(fp, "-k <key origin> -K <key string> [-KSK]\t\tAdd key to trusted keys\n");
 	fprintf(fp, "-v <verbosity>\t\tVerbosity level [1-5]\n");
 	fprintf(fp, "-version\tShow version and exit\n");
 	fprintf(fp, "@<nameserver>\t\tUse this nameserver\n");
@@ -30,6 +31,7 @@ int
 main(int argc, char *argv[]) {
 	int result;
 	uint8_t fam = LDNS_RESOLV_INETANY;
+	int check_database = 0;
 
 	char *arg_end_ptr = NULL;
 	char *serv = NULL;
@@ -59,6 +61,8 @@ main(int argc, char *argv[]) {
 					exit(1);
 				}
 				fam = LDNS_RESOLV_INET6;
+			} else if (strncmp(argv[i], "-c", 3) == 0) {
+				check_database = 1;
 			} else if (strncmp(argv[i], "-t", 3) == 0) {
 				if (i + 1 < argc) {
 					if (!strcmp(argv[i + 1], "A")) {
@@ -88,8 +92,19 @@ main(int argc, char *argv[]) {
 					i+=2;
 					if ((strncmp(argv[i], "-K", 3) == 0) && (i + 1 < argc)) {
 						char* key = argv[i + 1];
-						result = trustedkey_fromkey(rrset_trustedkeys, key,
-													origin, 1);
+						int ksk = 0;
+						if (strncmp(argv[i + 2], "-KSK", 5) == 0) {
+							ksk = 1;
+							i++;
+						}
+						ldns_rr* rr_trustedkey;
+						result = trustedkey_fromkey(&rr_trustedkey, key,
+													origin, ksk);
+						if (result != LDNS_STATUS_OK)
+							goto exit;
+
+						result = addto_trustedkeys(rrset_trustedkeys,
+												   rr_trustedkey);
 						if (result != LDNS_STATUS_OK)
 							goto exit;
 					} else {
@@ -192,7 +207,7 @@ main(int argc, char *argv[]) {
 		}
 	}
 
-	verify_rr(rrset, pkt, arg_domain);
+	//verify_rr(rrset, pkt, arg_domain);
 
 	// Verify DNSSEC tree valid
 	ldns_dnssec_data_chain* chain;
@@ -201,10 +216,12 @@ main(int argc, char *argv[]) {
 	if (result != LDNS_STATUS_OK)
 		goto cleanup;
 
-	// Populate trusted key list
-	result = populate_trustedkeys(rrset_trustedkeys, arg_domain);
-	if (result != LDNS_STATUS_OK)
-		goto cleanup;
+	// Populate trusted key list from database
+	if (check_database) {
+		result = populate_trustedkeys(rrset_trustedkeys, arg_domain);
+		if (result != LDNS_STATUS_OK)
+			goto cleanup;
+	}
 
 	// Check trusted keys exist in chain of trust
 	check_trustedkeys(tree, rrset_trustedkeys);

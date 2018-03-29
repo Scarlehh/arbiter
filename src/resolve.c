@@ -165,7 +165,7 @@ int
 verify_trust(ldns_dnssec_data_chain** chain, ldns_dnssec_trust_tree** tree,
 			 ldns_resolver* res, ldns_rr_list* rrlist, ldns_pkt* pkt) {
 	*chain = ldns_dnssec_build_data_chain(res, NULL, rrlist, pkt, NULL);
-	if (!chain) {
+	if (!(*chain)) {
 		fprintf(stderr, "Couldn't create DNSSEC data chain\n");
 		return LDNS_STATUS_ERR;
 	} else if (verbosity >= 4) {
@@ -174,7 +174,7 @@ verify_trust(ldns_dnssec_data_chain** chain, ldns_dnssec_trust_tree** tree,
 	}
 
 	*tree = ldns_dnssec_derive_trust_tree(*chain, NULL);
-	if (!tree) {
+	if (!(*tree)) {
 		fprintf(stderr, "Couldn't create DNSSEC trust tree\n");
 		return LDNS_STATUS_ERR;
 	} else if (verbosity >= 0) {
@@ -230,7 +230,7 @@ trustedkey_fromkey(ldns_rr** rr_trustedkey, char* key, char* domain,
 	int result = ldns_rr_new_frm_str(rr_trustedkey, dnskey_str, 0, NULL, NULL);
 	free(dnskey_str);
 	if (result != LDNS_STATUS_OK) {
-		fprintf(stderr, "Couldn't make trusted DNSKEY record from database key: %d\n", result);
+		fprintf(stderr, "Couldn't make trusted DNSKEY record from key: %d\n", result);
 		return result;
 	}
 
