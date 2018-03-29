@@ -35,7 +35,8 @@
 
 #define CONFIG_FILE "testconfig.conf"
 
-int verbosity = 5;
+int verbosity = 0;
+ldns_resolver *res;
 
 int mysql_setup(void) {
 	struct dbconfig config;
@@ -107,23 +108,49 @@ int mysql_teardown(void) {
 
 void test_get_root_certificate(void) {
 	char* cert;
-	int result = get_mysql_cert(CONFIG_FILE, ".", &cert);
+	int result = get_mysql_cert(CONFIG_FILE, ".", &cert, 1);
 	CU_ASSERT(strcmp(cert, "FAKE CERT") == 0);
-	CU_ASSERT(result == EXIT_SUCCESS);
+	CU_ASSERT(result == LDNS_STATUS_OK);
 	free(cert);
 }
 
 void test_get_nonexistent_domain(void) {
 	char* cert;
-	int result = get_mysql_cert(CONFIG_FILE, "foo", &cert);
-	CU_ASSERT(result == EXIT_FAILURE);
+	int result = get_mysql_cert(CONFIG_FILE, "foo", &cert, 1);
+	CU_ASSERT(result == LDNS_STATUS_ERR);
 }
 
 void test_get_NULL_cert(void) {
 	char* cert;
-	int result = get_mysql_cert(CONFIG_FILE, "test.", &cert);
+	int result = get_mysql_cert(CONFIG_FILE, "test.", &cert, 1);
 	CU_ASSERT(cert == NULL);
-	CU_ASSERT(result == EXIT_SUCCESS);
+	CU_ASSERT(result == LDNS_STATUS_OK);
+}
+
+
+int resolver_setup(void) {
+	int result = create_resolver(&res, "127.0.0.1");
+	if (result != LDNS_STATUS_OK) {
+		return result;
+	}
+	ldns_resolver_set_dnssec(res, true);
+	ldns_resolver_set_dnssec_cd(res, true);
+	ldns_resolver_set_ip6(res, LDNS_RESOLV_INETANY);
+	if (!res) {
+		return 2;
+	}
+	return 0;
+}
+
+int resolver_teardown(void) {
+	free(res);
+	return 0;
+}
+
+void test_get_A_RR(void) {
+	ldns_pkt* pkt;
+	query(&pkt, res, ldns_dname_new_frm_str("google.scarlett."), LDNS_RR_TYPE_A);
+	ldns_pkt_free(pkt);
 }
 
 
@@ -157,6 +184,20 @@ int main()
 		CU_cleanup_registry();
 		return CU_get_error();
 	}
+
+	// Database Suite
+	pSuite = CU_add_suite("Making query", resolver_setup, resolver_teardown);
+	if (NULL == pSuite) {
+		CU_cleanup_registry();
+		return CU_get_error();
+	}
+	if ((NULL == CU_add_test(pSuite,
+							 "Test get A resource record",
+							 test_get_A_RR))) {
+		CU_cleanup_registry();
+		return CU_get_error();
+	}
+
 
 	/* Run all tests using the CUnit Basic interface */
 	CU_basic_set_mode(CU_BRM_VERBOSE);
