@@ -15,8 +15,7 @@
 extern verbosity;
 
 void
-get_config(char *filename, struct dbconfig* configstruct)
-{
+get_config(char *filename, struct dbconfig* configstruct) {
 	FILE *file = fopen(filename, "r");
 
 	if (file != NULL) {
