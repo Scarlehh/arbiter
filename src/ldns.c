@@ -1,7 +1,9 @@
 #include "resolve.h"
+#include "helper.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include <ldns/ldns.h>
 
@@ -10,6 +12,17 @@
 #define LDNS_RESOLV_INET6		2
 
 int verbosity = 0;
+
+void
+show_time(struct timeval start, struct timeval end) {
+	int s = end.tv_sec - start.tv_sec;
+	int us = end.tv_usec - start.tv_usec;
+	if (us < 0) {
+		s -= 1;
+		us += 1000000;
+	}
+	printf("\nTime taken: %d us\n", (s*1000000)+us);
+}
 
 static int
 usage(FILE *fp, char *prog) {
@@ -41,7 +54,6 @@ main(int argc, char *argv[]) {
 	const char* arg_domain = NULL;
 
 	ldns_rdf *domain = NULL;
-	ldns_rdf *startpoint = NULL;
 
 	ldns_rr_type rtype = LDNS_RR_TYPE_A;
 
@@ -220,8 +232,13 @@ main(int argc, char *argv[]) {
 	}
 
 	// Check requested RR is OK
-	if (val_RR)
+	if (val_RR) {
+		struct timeval start, end;
+		gettimeofday(&start, NULL);
 		verify_rr(rrset, pkt, arg_domain);
+		gettimeofday(&end, NULL);
+		show_time(start, end);
+	}
 
 	// Populate trusted key list from database
 	if (check_database) {
@@ -234,11 +251,16 @@ main(int argc, char *argv[]) {
 	if (val_chain) {
 		ldns_dnssec_data_chain* chain;
 		ldns_dnssec_trust_tree* tree;
+		struct timeval start, end;
+		gettimeofday(&start, NULL);
 		result = verify_trust(&chain, &tree, res, rrset, pkt);
 
 		// Check trusted keys exist in chain of trust
-		if (result == LDNS_STATUS_OK)
+		if (result == LDNS_STATUS_OK) {
 			check_trustedkeys(tree, rrset_trustedkeys);
+			gettimeofday(&end, NULL);
+			show_time(start, end);
+		}
 		ldns_dnssec_trust_tree_free(tree);
 		ldns_dnssec_data_chain_deep_free(chain);
 	}
