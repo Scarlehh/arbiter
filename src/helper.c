@@ -68,23 +68,24 @@ get_mysql_cert(char* configfile, char* domain, char** cert, int ksk) {
 	char query[MAXBUF];
 	sprintf(query, "SELECT cert FROM certificates WHERE domain='%s' AND ksk=%d", domain, ksk);
 	if (mysql_query(con, query)) {
-		fprintf(stderr, "%s\n", mysql_error(con));
+		if (verbosity >= 4)
+			fprintf(stderr, "%s\n", mysql_error(con));
 		result = LDNS_STATUS_ERR;
 		goto finish;
 	}
 
 	MYSQL_RES* mysql_result = mysql_store_result(con);
 	if (mysql_result == NULL) {
-		fprintf(stderr, "%s\n", mysql_error(con));
+		if (verbosity >= 4)
+			fprintf(stderr, "%s\n", mysql_error(con));
 		result = LDNS_STATUS_ERR;
 		goto finish;
 	}
 
 	MYSQL_ROW row = mysql_fetch_row(mysql_result);
 	if (row == 0) {
-		if (verbosity >= 2)
-			fprintf(stderr, "Domain %s %s is not registered in database\n",
-					domain, (ksk ? "KSK" : "ZSK"));
+		if (verbosity >= 4)
+			fprintf(stderr, "Domain %s is not registered in database\n", domain);
 		result = LDNS_STATUS_ERR;
 		goto finish;
 	} else if (row[0] == NULL) {

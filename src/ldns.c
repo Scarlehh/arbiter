@@ -225,7 +225,6 @@ main(int argc, char *argv[]) {
 
 	// Populate trusted key list from database
 	if (check_database) {
-		fprintf(stderr, "Getting keys\n\n\n");
 		result = populate_trustedkeys(rrset_trustedkeys, arg_domain);
 		if (result != LDNS_STATUS_OK)
 			goto cleanup;
