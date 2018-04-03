@@ -35,7 +35,9 @@ OBJ_TEST_RES  = $(patsubst %,$(BUILD)%,$(_OBJ_TEST_RES))
 
 # Req size Files
 _OBJ_REQSIZE =\
-	reqsize.o
+	reqsize.o \
+	resolve.o \
+	helper.o
 OBJ_REQSIZE  = $(patsubst %,$(BUILD)%,$(_OBJ_REQSIZE))
 
 # Util Files
@@ -78,7 +80,7 @@ $(MAIN_TEST_RES): mkdir $(MAIN_RES) $(OBJ_TEST_RES)
 # Req size
 .PHONY: $(MAIN_REQSIZE)
 $(MAIN_REQSIZE): mkdir $(OBJ_REQSIZE)
-	$(CC) $(CFLAGS) $(OBJ_REQSIZE) -o $(BIN)$@
+	$(CC) $(CFLAGS) $(OBJ_REQSIZE) $(LFLAGS) $(LIBS) -o $(BIN)$@
 
 -include $(DEPS_REQSIZE)
 
