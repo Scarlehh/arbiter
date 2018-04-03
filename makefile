@@ -33,6 +33,11 @@ _OBJ_TEST_RES =\
 	helper.o
 OBJ_TEST_RES  = $(patsubst %,$(BUILD)%,$(_OBJ_TEST_RES))
 
+# Req size Files
+_OBJ_REQSIZE =\
+	reqsize.o
+OBJ_REQSIZE  = $(patsubst %,$(BUILD)%,$(_OBJ_REQSIZE))
+
 # Util Files
 _OBJ_UTIL =\
 	ecdsa.o
@@ -41,21 +46,23 @@ OBJ_UTIL  = $(patsubst %,$(BUILD)%,$(_OBJ_UTIL))
 # Dependencies
 DEPS_RES = $(OBJ_RES:.o=.d)
 DEPS_TEST_RES = $(OBJ_TEST_RES:.o=.d)
-DEPS_TEST_RES = $(OBJ_UTIL:.o=.d)
+DEPS_REQSIZE = $(OBJ_REQSIZE:.o=.d)
+DEPS_UTIL = $(OBJ_UTIL:.o=.d)
 
 # Main
 MAIN_RES = main
 MAIN_TEST_RES = test
+MAIN_REQSIZE = reqsize
 MAIN_UTIL = util
 
 
 .PHONY: default
-default: $(MAIN_RES) $(MAIN_TEST_RES) $(MAIN_UTIL)
+default: $(MAIN_RES) $(MAIN_TEST_RES) $(MAIN_REQSIZE) $(MAIN_UTIL)
 
 # Resolver
 .PHONY: $(MAIN_RES)
 $(MAIN_RES): mkdir $(OBJ_RES)
-	$(CC) $(CFLAGS) $(OBJ_RES) $(LFLAGS) $(LIBS) -o $(BIN)$(MAIN_RES)
+	$(CC) $(CFLAGS) $(OBJ_RES) $(LFLAGS) $(LIBS) -o $(BIN)$@
 
 -include $(DEPS_RES)
 
@@ -63,43 +70,51 @@ $(MAIN_RES): mkdir $(OBJ_RES)
 # Test resolver
 .PHONY: $(MAIN_TEST_RES)
 $(MAIN_TEST_RES): mkdir $(MAIN_RES) $(OBJ_TEST_RES)
-	$(CC) $(CFLAGS) $(OBJ_TEST_RES) $(LFLAGS) $(LIBS) -lcunit -o $(BIN)$(MAIN_TEST_RES)
+	$(CC) $(CFLAGS) $(OBJ_TEST_RES) $(LFLAGS) $(LIBS) -lcunit -o $(BIN)$@
 
 -include $(DEPS_TEST_RES)
+
+
+# Req size
+.PHONY: $(MAIN_REQSIZE)
+$(MAIN_REQSIZE): mkdir $(OBJ_REQSIZE)
+	$(CC) $(CFLAGS) $(OBJ_REQSIZE) -o $(BIN)$@
+
+-include $(DEPS_REQSIZE)
 
 
 # Util
 .PHONY: $(MAIN_UTIL)
 $(MAIN_UTIL): mkdir $(OBJ_UTIL)
-	$(CC) $(CFLAGS) $(OBJ_UTIL) -lcrypto -o $(BIN)$(MAIN_UTIL)
+	$(CC) $(CFLAGS) $(OBJ_UTIL) -lcrypto -o $(BIN)$@
 
--include $(DEPS_UTL)
+-include $(DEPS_UTIL)
 
 
-# Build src files
+# Builders
 $(BUILD)%.o: $(SRC)%.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -MMD -MF $(@:.o=.d) -o $@
 
-# Build test files
 $(BUILD)%.o: $(TEST)%.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -MMD -MF $(@:.o=.d) -o $@
 
-# Build util files
 $(BUILD)%.o: $(UTIL)%.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -MMD -MF $(@:.o=.d) -o $@
 
 
-# Run main
+# Runners
 .PHONY: mrun
 mrun:
 	./$(BIN)$(MAIN_RES)
 
-# Run test resolver
 .PHONY: trun
 trun:
 	./$(BIN)$(MAIN_TEST_RES)
 
-# Run test resolver
+.PHONY: rrun
+rrun:
+	./$(BIN)$(MAIN_REQSIZE)
+
 .PHONY: urun
 urun:
 	./$(BIN)$(MAIN_UTIL)
