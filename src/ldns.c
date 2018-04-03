@@ -18,7 +18,8 @@ usage(FILE *fp, char *prog) {
 	fprintf(fp, "OPTIONS:\n");
 	fprintf(fp, "-4\t\tonly use IPv4\n");
 	fprintf(fp, "-6\t\tonly use IPv6\n");
-	fprintf(fp, "-c\t\tCheck database for keys\n");
+	fprintf(fp, "-val-chain [-c] \t\tValidate DNSSEC chain\n");
+	fprintf(fp, "-val-RR \t\tValidate requested RR\n");
 	fprintf(fp, "-t <rrtype>\t\tLook up this record\n");
 	fprintf(fp, "-k <key origin> -K <key string> [-KSK]\t\tAdd key to trusted keys\n");
 	fprintf(fp, "-v <verbosity>\t\tVerbosity level [1-5]\n");
@@ -32,6 +33,8 @@ main(int argc, char *argv[]) {
 	int result;
 	uint8_t fam = LDNS_RESOLV_INETANY;
 	int check_database = 0;
+	int val_chain = 0;
+	int val_RR = 0;
 
 	char *arg_end_ptr = NULL;
 	char *serv = NULL;
@@ -61,8 +64,16 @@ main(int argc, char *argv[]) {
 					exit(1);
 				}
 				fam = LDNS_RESOLV_INET6;
-			} else if (strncmp(argv[i], "-c", 3) == 0) {
-				check_database = 1;
+			} else if (strcmp("-val-chain", argv[i]) == 0) {
+				val_chain = 1;
+				if (i + 1 < argc) {
+					if (strncmp(argv[i + 1], "-c", 3) == 0) {
+						check_database = 1;
+						i++;
+					}
+				}
+			} else if (strcmp("-val-RR", argv[i]) == 0) {
+				val_RR = 1;
 			} else if (strncmp(argv[i], "-t", 3) == 0) {
 				if (i + 1 < argc) {
 					if (!strcmp(argv[i + 1], "A")) {
@@ -201,36 +212,40 @@ main(int argc, char *argv[]) {
 			fprintf(stderr, "No records for given type\n");
 			result = 3;
 			ldns_pkt_free(pkt);
+
 			ldns_rdf_deep_free(domain);
 			ldns_resolver_deep_free(res);
 			goto exit;
 		}
 	}
 
-	//verify_rr(rrset, pkt, arg_domain);
-
-	// Verify DNSSEC tree valid
-	ldns_dnssec_data_chain* chain;
-	ldns_dnssec_trust_tree* tree;
-	result = verify_trust(&chain, &tree, res, rrset, pkt);
-	if (result != LDNS_STATUS_OK)
-		goto cleanup;
+	// Check requested RR is OK
+	if (val_RR)
+		verify_rr(rrset, pkt, arg_domain);
 
 	// Populate trusted key list from database
 	if (check_database) {
+		fprintf(stderr, "Getting keys\n\n\n");
 		result = populate_trustedkeys(rrset_trustedkeys, arg_domain);
 		if (result != LDNS_STATUS_OK)
 			goto cleanup;
 	}
 
-	// Check trusted keys exist in chain of trust
-	check_trustedkeys(tree, rrset_trustedkeys);
+	// Verify DNSSEC tree valid
+	if (val_chain) {
+		ldns_dnssec_data_chain* chain;
+		ldns_dnssec_trust_tree* tree;
+		result = verify_trust(&chain, &tree, res, rrset, pkt);
+
+		// Check trusted keys exist in chain of trust
+		if (result == LDNS_STATUS_OK)
+			check_trustedkeys(tree, rrset_trustedkeys);
+		ldns_dnssec_trust_tree_free(tree);
+		ldns_dnssec_data_chain_deep_free(chain);
+	}
 
 	// Cleanup
  cleanup:
-	ldns_dnssec_trust_tree_free(tree);
-	ldns_dnssec_data_chain_deep_free(chain);
-
 	ldns_rr_list_deep_free(rrset);
 	ldns_pkt_free(pkt);
 
