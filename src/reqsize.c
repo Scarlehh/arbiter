@@ -7,6 +7,7 @@
 
 #define ZONEDATA "zonedata.txt"
 #define MAXBUF 1024
+#define THREADS 20
 
 int verbosity = 0;
 
@@ -104,7 +105,7 @@ request(void* arg) {
 	int linecount = in->linecount;
 	int start = in->start;
 
-	for(int i = start; i < linecount; i+=4) {
+	for(int i = start; i < linecount; i+=THREADS) {
 		// Create resolver
 		ldns_resolver *res;
 		int result = create_resolver(&res, NULL);
@@ -131,7 +132,7 @@ request(void* arg) {
 
 int
 main(void) {
-	int linecount = count_lines();
+	int linecount = 100000;
 	char** zones = malloc(sizeof(char*)*linecount);
 	linecount = get_dnssec_zones(zones, linecount);
 
@@ -139,16 +140,16 @@ main(void) {
 		   "%-50s\t\t-----\t\t---------\n",
 		   "Domain name", "Bytes", "Algorithm", "-----------");
 
-	struct arg in[4];
-	pthread_t threads[4];
-	for(int i = 0; i < 4; i++) {
+	struct arg in[THREADS];
+	pthread_t threads[THREADS];
+	for(int i = 0; i < THREADS; i++) {
 		in[i].zones = zones;
 		in[i].linecount = linecount;
 		in[i].start = i;
 		pthread_create(&threads[i], NULL, request, &in[i]);
 	}
 
-	for(int i = 0; i < 4; i++) {
+	for(int i = 0; i < THREADS; i++) {
 		pthread_join(threads[i], NULL);
 	}
 
