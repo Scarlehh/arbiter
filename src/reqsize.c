@@ -15,6 +15,12 @@ struct rrsig_info {
 	int algorithm
 };
 
+struct arg {
+	char** zones;
+	int linecount;
+	int start;
+};
+
 int
 count_lines() {
 	FILE *file = fopen(ZONEDATA, "r");
@@ -91,21 +97,19 @@ check_dnssec(char* domain_name, ldns_resolver* res, struct rrsig_info* info) {
 	return 1;
 }
 
-int
-main(void) {
-	int linecount = count_lines();
-	char** zones = malloc(sizeof(char*)*linecount);
-	linecount = get_dnssec_zones(zones, linecount);
+void*
+request(void* arg) {
+	struct arg* in = arg;
+	char** zones = in->zones;
+	int linecount = in->linecount;
+	int start = in->start;
 
-	printf("%-30s\t\t%s\t\t%s\n"
-		   "%-30s\t\t-----\t\t---------\n",
-		   "Domain name", "Bytes", "Algorithm", "-----------");
-	for(int i = 0; i < linecount; i++) {
+	for(int i = start; i < linecount; i+=4) {
 		// Create resolver
 		ldns_resolver *res;
 		int result = create_resolver(&res, NULL);
 		if (result != EXIT_SUCCESS)
-			goto exit;
+			return;
 
 		// Configure resolver
 		ldns_resolver_set_dnssec(res, true);
@@ -113,15 +117,39 @@ main(void) {
 		ldns_resolver_set_ip6(res, LDNS_RESOLV_INETANY);
 		if (!res) {
 			result = 2;
-			goto exit;
+			return;
 		}
 
 		struct rrsig_info info;
 		if(check_dnssec(zones[i], res, &info)) {
-			printf("%-30s\t\t%d\t\t%d\n", zones[i], info.bytes, info.algorithm);
+			printf("%-50s\t\t%d\t\t%d\n", zones[i], info.bytes, info.algorithm);
 		}
 
 		ldns_resolver_deep_free(res);
+	}
+}
+
+int
+main(void) {
+	int linecount = count_lines();
+	char** zones = malloc(sizeof(char*)*linecount);
+	linecount = get_dnssec_zones(zones, linecount);
+
+	printf("%-50s\t\t%s\t\t%s\n"
+		   "%-50s\t\t-----\t\t---------\n",
+		   "Domain name", "Bytes", "Algorithm", "-----------");
+
+	struct arg in[4];
+	pthread_t threads[4];
+	for(int i = 0; i < 4; i++) {
+		in[i].zones = zones;
+		in[i].linecount = linecount;
+		in[i].start = i;
+		pthread_create(&threads[i], NULL, request, &in[i]);
+	}
+
+	for(int i = 0; i < 4; i++) {
+		pthread_join(threads[i], NULL);
 	}
 
  exit:
