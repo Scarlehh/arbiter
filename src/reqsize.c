@@ -7,7 +7,7 @@
 
 #define ZONEDATA "zonedata.txt"
 #define MAXBUF 1024
-#define THREADS 20
+#define THREADS 32
 
 int verbosity = 0;
 
@@ -77,13 +77,18 @@ int
 check_dnssec(char* domain_name, ldns_resolver* res, struct rrsig_info* info) {
 	ldns_rdf* domain = ldns_dname_new_frm_str(domain_name);
 	ldns_pkt* pkt;
-	query(&pkt, res, domain, LDNS_RR_TYPE_A);
+	query(&pkt, res, domain, LDNS_RR_TYPE_DNSKEY);
 	ldns_rr_list* rrset =
 		ldns_pkt_rr_list_by_type(pkt, LDNS_RR_TYPE_RRSIG, LDNS_SECTION_ANSWER);
-	if (!rrset) {
+	if (!rrset || !ldns_rr_list_rr_count(rrset))
+		return 0;
+
+	ldns_rr_list* rrsig =
+		ldns_pkt_rr_list_by_type(pkt, LDNS_RR_TYPE_RRSIG, LDNS_SECTION_ANSWER);
+	if (!rrsig) {
 		rrset = ldns_pkt_rr_list_by_type(pkt, LDNS_RR_TYPE_RRSIG,
 										 LDNS_SECTION_AUTHORITY);
-		if (!rrset) {
+		if (!rrsig) {
 			ldns_pkt_free(pkt);
 			ldns_rdf_deep_free(domain);
 			return 0;
@@ -110,7 +115,7 @@ request(void* arg) {
 		ldns_resolver *res;
 		int result = create_resolver(&res, NULL);
 		if (result != EXIT_SUCCESS)
-			return;
+			continue;
 
 		// Configure resolver
 		ldns_resolver_set_dnssec(res, true);
@@ -118,7 +123,7 @@ request(void* arg) {
 		ldns_resolver_set_ip6(res, LDNS_RESOLV_INETANY);
 		if (!res) {
 			result = 2;
-			return;
+			continue;
 		}
 
 		struct rrsig_info info;
@@ -132,7 +137,7 @@ request(void* arg) {
 
 int
 main(void) {
-	int linecount = 100000;
+	int linecount = count_lines();
 	char** zones = malloc(sizeof(char*)*linecount);
 	linecount = get_dnssec_zones(zones, linecount);
 
