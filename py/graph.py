@@ -3,9 +3,10 @@
 import argparse
 import plotly
 
-def create_data(data):
+def create_data(data, alg_name):
     return dict(
         type = "bar",
+        name = alg_name,
         x = data,
         y = data,
         transforms = [dict(
@@ -17,9 +18,9 @@ def create_data(data):
         )]
     )
 
-def graph(traces, rr):
+def graph(traces, title):
     layout = dict(
-        title = "{} +dnssec Response Sizes".format(rr)
+        title = title
     )
 
     plotly.offline.plot(
@@ -42,19 +43,29 @@ def process_file(filename, alg):
 def main():
     parser = argparse.ArgumentParser(description="Create graphs from DNSSEC response sizes")
     parser.add_argument("--filename", metavar="F", type=str, nargs=1,
-                        help="File to read values from")
-    parser.add_argument("--record", metavar="t", type=str, nargs=1,
-                        help="Resource record type being processed")
+                        required=True, help="File to read values from")
+    parser.add_argument("--title", metavar="T", type=str, nargs=1, default="",
+                        help="Graph Title")
+    parser.add_argument("--algorithms", metavar="A", type=int, nargs="+",
+                        choices=[3, 5, 6, 7, 8, 10, 13, 14, 15],
+                        required=True, help="Algorithms to appear in graph")
     args = parser.parse_args()
 
-    if not args.filename:
-        print("Filename required")
-        exit(1)
+    if args.title:
+        title = args.title[0]
+    else:
+        title = args.title
 
-    rrsize = process_file(args.filename[0], 13)
+    algs = args.algorithms
+    rrsize = []
+    for a in algs:
+        rrsize.append(process_file(args.filename[0], a))
 
-    trace = create_data(rrsize)
-    graph([trace], "DNSKEY")
+    traces = []
+    for i in range(len(rrsize)):
+        traces.append(create_data(rrsize[i], algs[i]))
+
+    graph(traces, title)
 
 if __name__ == "__main__":
     main()
