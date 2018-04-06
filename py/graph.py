@@ -3,7 +3,7 @@
 import argparse
 import plotly
 
-def create_data(data, alg_name):
+def create_bar(data, alg_name):
     return dict(
         type = "bar",
         name = alg_name,
@@ -18,9 +18,32 @@ def create_data(data, alg_name):
         )]
     )
 
+def create_hist(data, alg_name):
+    return dict(
+        type = "histogram",
+        name = alg_name,
+        x = data,
+        histnorm = "percent"
+    )
+
+def create_cumm(data, alg_name):
+    return dict(
+        type = "histogram",
+        name = alg_name,
+        x = data,
+        histnorm = "percent",
+        cumulative=dict(enabled=True)
+    )
+
 def graph(traces, title):
     layout = dict(
-        title = title
+        title = title,
+        xaxis = {
+            "title": "size (bytes)"
+        },
+        yaxis = {
+            "title": "frequency"
+        }
     )
 
     plotly.offline.plot(
@@ -31,13 +54,15 @@ def graph(traces, title):
         validate=False
     )
 
-def process_file(filename, alg):
+def process_file(filename, alg, filt=None):
     rrsize = []
     with open(filename) as f:
         for line in f.readlines()[3:]:
             parts = line.split()
             if len(parts) is 3 and int(parts[2]) == alg:
-                rrsize.append(int(parts[1]))
+                size = int(parts[1])
+                if filt is None or size < filt:
+                    rrsize.append(size)
     return rrsize
 
 def main():
@@ -49,6 +74,11 @@ def main():
     parser.add_argument("--algorithms", metavar="A", type=int, nargs="+",
                         choices=[3, 5, 6, 7, 8, 10, 13, 14, 15],
                         required=True, help="Algorithms to appear in graph")
+    parser.add_argument("--chart", metavar="C", type=str, nargs=1,
+                        choices=["bar", "hist", "cumm"], required=True,
+                        help="Specify chart to display")
+    parser.add_argument("--filt", metavar="f", type=int, nargs="?",
+                        help="Filter graph above a certain value")
     args = parser.parse_args()
 
     if args.title:
@@ -59,11 +89,20 @@ def main():
     algs = args.algorithms
     rrsize = []
     for a in algs:
-        rrsize.append(process_file(args.filename[0], a))
+        if args.filt:
+            rrsize.append(process_file(args.filename[0], a, args.filt))
+        else:
+            rrsize.append(process_file(args.filename[0], a))
 
     traces = []
+    chart = args.chart[0]
     for i in range(len(rrsize)):
-        traces.append(create_data(rrsize[i], algs[i]))
+        if chart == "bar":
+            traces.append(create_bar(rrsize[i], algs[i]))
+        elif chart == "hist":
+            traces.append(create_hist(rrsize[i], algs[i]))
+        elif chart == "cumm":
+            traces.append(create_cumm(rrsize[i], algs[i]))
 
     graph(traces, title)
 
