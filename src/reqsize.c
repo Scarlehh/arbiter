@@ -8,6 +8,7 @@
 #define ZONEDATA "zonedata.txt"
 #define MAXBUF 1024
 #define THREADS 32
+#define RR LDNS_RR_TYPE_A
 
 int verbosity = 0;
 
@@ -77,7 +78,7 @@ int
 check_dnssec(char* domain_name, ldns_resolver* res, struct rrsig_info* info) {
 	ldns_rdf* domain = ldns_dname_new_frm_str(domain_name);
 	ldns_pkt* pkt;
-	query(&pkt, res, domain, LDNS_RR_TYPE_DNSKEY);
+	query(&pkt, res, domain, RR);
 	ldns_rr_list* rrset =
 		ldns_pkt_rr_list_by_type(pkt, LDNS_RR_TYPE_RRSIG, LDNS_SECTION_ANSWER);
 	if (!rrset || !ldns_rr_list_rr_count(rrset))
