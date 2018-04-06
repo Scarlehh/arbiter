@@ -3,6 +3,9 @@ build/
 config.conf
 testconfig.conf
 zonedata.txt
-certs/
+
 venv/
 temp-plot.html
+
+certs/
+stats/
