@@ -1,0 +1,15 @@
+$ORIGIN .
+$TTL 7200
+.		IN  SOA localhost. root.scarlett. (
+                                20140371    ; serial
+                                172800      ; refresh (2 days)
+                                14400       ; retry (4 hours)
+                                3628800     ; expire (6 weeks)
+                                604800      ; minimum (1 week)
+                                )
+.    	        IN  NS  localhost.
+localhost.	IN  A   127.0.0.1
+scarlett.	IN  NS	localhost.
+$INCLUDE K.+013+14200.key
+$INCLUDE K.+013+14579.key
+$INCLUDE dsset-scarlett.

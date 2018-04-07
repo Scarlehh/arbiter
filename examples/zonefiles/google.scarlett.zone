@@ -1,0 +1,15 @@
+$ORIGIN google.scarlett.
+$TTL 7200
+google.scarlett. IN  SOA ns.google.scarlett. root.google.scarlett. (
+                                20140341    ; serial
+                                172800      ; refresh (2 days)
+                                14400       ; retry (4 hours)
+                                3628800     ; expire (6 weeks)
+                                604800      ; minimum (1 week)
+                                )
+google.scarlett. IN  NS  ns.google.scarlett.
+google.scarlett. IN  A   192.168.2.0
+google.scarlett. IN  A   192.168.2.20
+ns          IN  A   192.168.2.1
+;$INCLUDE Kgoogle.scarlett.+013+20114.key
+$INCLUDE Kgoogle.scarlett.+013+50590.key

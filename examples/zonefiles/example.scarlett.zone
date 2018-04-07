@@ -1,0 +1,14 @@
+$ORIGIN example.scarlett.
+$TTL 7200
+example.scarlett. IN  SOA ns.example.scarlett. root.example.scarlett. (
+                                20140336    ; serial
+                                172800      ; refresh (2 days)
+                                14400       ; retry (4 hours)
+                                3628800     ; expire (6 weeks)
+                                604800      ; minimum (1 week)
+                                )
+example.scarlett. IN  NS  ns.example.scarlett.
+example.scarlett. IN  A   192.168.6.0
+ns          	  IN  A   192.168.6.1
+$INCLUDE Kexample.scarlett.+013+08382.key
+$INCLUDE Kexample.scarlett.+013+23616.key
