@@ -35,16 +35,20 @@ def create_cumm(data, alg_name):
         cumulative=dict(enabled=True)
     )
 
-def graph(traces, title):
+def graph(traces, title, r=None):
     layout = dict(
         title = title,
-        xaxis = {
-            "title": "size (bytes)"
-        },
-        yaxis = {
-            "title": "frequency"
-        }
+        xaxis = dict(
+            title = "size (bytes)",
+            dtick = 64
+        ),
+        yaxis = dict(
+            title = "frequency"
+        ),
     )
+
+    if r:
+        layout["xaxis"]["range"] = r
 
     plotly.offline.plot(
         {
@@ -54,15 +58,13 @@ def graph(traces, title):
         validate=False
     )
 
-def process_file(filename, alg, filt=None):
+def process_file(filename, alg):
     rrsize = []
     with open(filename) as f:
         for line in f.readlines()[3:]:
             parts = line.split()
             if len(parts) is 3 and int(parts[2]) == alg:
-                size = int(parts[1])
-                if filt is None or size < filt:
-                    rrsize.append(size)
+                rrsize.append(int(parts[1]))
     return rrsize
 
 def main():
@@ -77,8 +79,8 @@ def main():
     parser.add_argument("--chart", metavar="C", type=str, nargs=1,
                         choices=["bar", "hist", "cumm"], required=True,
                         help="Specify chart to display")
-    parser.add_argument("--filt", metavar="f", type=int, nargs="?",
-                        help="Filter graph above a certain value")
+    parser.add_argument("--rang", metavar="r", type=int, nargs=2,
+                        help="Set graph range")
     args = parser.parse_args()
 
     if args.title:
@@ -89,10 +91,7 @@ def main():
     algs = args.algorithms
     rrsize = []
     for a in algs:
-        if args.filt:
-            rrsize.append(process_file(args.filename[0], a, args.filt))
-        else:
-            rrsize.append(process_file(args.filename[0], a))
+        rrsize.append(process_file(args.filename[0], a))
 
     traces = []
     chart = args.chart[0]
@@ -104,7 +103,10 @@ def main():
         elif chart == "cumm":
             traces.append(create_cumm(rrsize[i], algs[i]))
 
-    graph(traces, title)
+    rang = None
+    if args.rang:
+        rang = [args.rang[0], args.rang[1]]
+    graph(traces, title, rang)
 
 if __name__ == "__main__":
     main()
