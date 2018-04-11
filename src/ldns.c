@@ -55,7 +55,7 @@ main(int argc, char *argv[]) {
 	ldns_rdf *domain = NULL;
 
 	ldns_rr_type rtype = LDNS_RR_TYPE_A;
-	ldns_rr_type rtype_additional = NULL;
+	ldns_rr_type rtype_additional = 0;
 
 	ldns_rr_list* rrset_trustedkeys = ldns_rr_list_new();
 
@@ -86,6 +86,33 @@ main(int argc, char *argv[]) {
 				}
 			} else if (strcmp("-val-RR", argv[i]) == 0) {
 				val_RR = 1;
+				if (i + 1 < argc) {
+					if (strncmp(argv[i + 1], "-t", 3) == 0) {
+						if (i + 2 < argc) {
+							i++;
+							if (!strcmp(argv[i + 1], "A")) {
+								rtype_additional = LDNS_RR_TYPE_A;
+							} else if (!strcmp(argv[i + 1], "NS")) {
+								rtype_additional = LDNS_RR_TYPE_NS;
+							} else if (!strcmp(argv[i + 1], "CNAME")) {
+								rtype_additional = LDNS_RR_TYPE_CNAME;
+							} else if (!strcmp(argv[i + 1], "SOA")) {
+								rtype_additional = LDNS_RR_TYPE_SOA;
+							} else if (!strcmp(argv[i + 1], "DS")) {
+								rtype_additional = LDNS_RR_TYPE_DS;
+							} else if (!strcmp(argv[i + 1], "DNSKEY")) {
+								rtype_additional = LDNS_RR_TYPE_DNSKEY;
+							} else {
+								fprintf(stderr, "RRtype not supported\n");
+								exit(1);
+							}
+						} else {
+							printf("Missing argument for -t\n");
+							exit(1);
+						}
+						i++;
+					}
+				}
 			} else if (strncmp(argv[i], "-t", 3) == 0) {
 				if (i + 1 < argc) {
 					if (!strcmp(argv[i + 1], "A")) {
@@ -237,6 +264,17 @@ main(int argc, char *argv[]) {
 				  arg_domain);
 		gettimeofday(&end, NULL);
 		show_time(start, end);
+
+		if (rtype_additional) {
+			gettimeofday(&start, NULL);
+			verify_rr(ldns_pkt_rr_list_by_type(pkt, rtype_additional,
+											   LDNS_SECTION_ADDITIONAL),
+					  ldns_pkt_rr_list_by_type(pkt, LDNS_RR_TYPE_RRSIG,
+											   LDNS_SECTION_ADDITIONAL),
+					  arg_domain);
+			gettimeofday(&end, NULL);
+			show_time(start, end);
+		}
 	}
 
 	// Populate trusted key list from database
