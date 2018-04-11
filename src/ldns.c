@@ -30,8 +30,8 @@ usage(FILE *fp, char *prog) {
 	fprintf(fp, "OPTIONS:\n");
 	fprintf(fp, "-4\t\tonly use IPv4\n");
 	fprintf(fp, "-6\t\tonly use IPv6\n");
-	fprintf(fp, "-val-chain [-c] \t\tValidate DNSSEC chain\n");
-	fprintf(fp, "-val-RR \t\tValidate requested RR\n");
+	fprintf(fp, "-val-chain [-c] \t\tValidate DNSSEC chain [and check database for keys]\n");
+	fprintf(fp, "-val-RR [-t <rrtype>] \t\tValidate requested RR [and additional records]\n");
 	fprintf(fp, "-t <rrtype>\t\tLook up this record\n");
 	fprintf(fp, "-k <key origin> -K <key string> [-KSK]\t\tAdd key to trusted keys\n");
 	fprintf(fp, "-v <verbosity>\t\tVerbosity level [1-5]\n");
@@ -55,6 +55,7 @@ main(int argc, char *argv[]) {
 	ldns_rdf *domain = NULL;
 
 	ldns_rr_type rtype = LDNS_RR_TYPE_A;
+	ldns_rr_type rtype_additional = NULL;
 
 	ldns_rr_list* rrset_trustedkeys = ldns_rr_list_new();
 
@@ -217,24 +218,23 @@ main(int argc, char *argv[]) {
 	ldns_rr_list* rrset =
 		ldns_pkt_rr_list_by_type(pkt, rtype, LDNS_SECTION_ANSWER);
 	if (!rrset) {
-		rrset = ldns_pkt_rr_list_by_type(pkt, rtype,
-										 LDNS_SECTION_AUTHORITY);
-		if (!rrset) {
-			fprintf(stderr, "No records for given type\n");
-			result = 3;
-			ldns_pkt_free(pkt);
+		fprintf(stderr, "No records for given type\n");
+		result = 3;
+		ldns_pkt_free(pkt);
 
-			ldns_rdf_deep_free(domain);
-			ldns_resolver_deep_free(res);
-			goto exit;
-		}
+		ldns_rdf_deep_free(domain);
+		ldns_resolver_deep_free(res);
+		goto exit;
 	}
 
 	// Check requested RR is OK
 	if (val_RR) {
 		struct timeval start, end;
 		gettimeofday(&start, NULL);
-		verify_rr(rrset, pkt, arg_domain);
+		verify_rr(rrset,
+				  ldns_pkt_rr_list_by_type(pkt, LDNS_RR_TYPE_RRSIG,
+										   LDNS_SECTION_ANSWER),
+				  arg_domain);
 		gettimeofday(&end, NULL);
 		show_time(start, end);
 	}

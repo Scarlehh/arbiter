@@ -285,19 +285,18 @@ populate_trustedkeys(ldns_rr_list* rrset_trustedkeys, char* domain) {
 }
 
 int
-verify_rr(ldns_rr_list* rrset, ldns_pkt* pkt, char* domain) {
+verify_rr(ldns_rr_list* rrset, ldns_rr_list* rrsig, char* domain) {
 	printf(
 		   "\n-------------------------\n"
 		   "Verifying Resource Record\n"
 		   "-------------------------\n");
-	ldns_rr_list* rrsig =
-		ldns_pkt_rr_list_by_type(pkt, LDNS_RR_TYPE_RRSIG, LDNS_SECTION_ANSWER);
+
 	if (!rrsig) {
 		printf("No resource record signature; DNSSEC enabled?\n");
 		return LDNS_STATUS_CRYPTO_NO_RRSIG;
 	}
 	if (verbosity >= 1)
-		printf("Found %d RRSIG\n", ldns_rr_list_rr_count(rrsig));
+		printf("RRSIGs to validate: %d\n", ldns_rr_list_rr_count(rrsig));
 
 	char* zsk;
 	char* ksk;
@@ -316,7 +315,6 @@ verify_rr(ldns_rr_list* rrset, ldns_pkt* pkt, char* domain) {
 
 	ldns_rr* trustedzsk = NULL;
 	if (zsk != NULL) {
-		fprintf(stderr, "Test\n");
 		result = trustedkey_fromkey(&trustedzsk, zsk+36, domain, false);
 		free(zsk);
 		if (result != LDNS_STATUS_OK) {
