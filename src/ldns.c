@@ -261,7 +261,7 @@ main(int argc, char *argv[]) {
 		verify_rr(rrset,
 				  ldns_pkt_rr_list_by_type(pkt, LDNS_RR_TYPE_RRSIG,
 										   LDNS_SECTION_ANSWER),
-				  arg_domain);
+				  arg_domain, rtype);
 		gettimeofday(&end, NULL);
 		show_time(start, end);
 
@@ -271,7 +271,7 @@ main(int argc, char *argv[]) {
 											   LDNS_SECTION_ADDITIONAL),
 					  ldns_pkt_rr_list_by_type(pkt, LDNS_RR_TYPE_RRSIG,
 											   LDNS_SECTION_ADDITIONAL),
-					  arg_domain);
+					  arg_domain, rtype_additional);
 			gettimeofday(&end, NULL);
 			show_time(start, end);
 		}

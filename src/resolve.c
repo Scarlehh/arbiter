@@ -285,7 +285,8 @@ populate_trustedkeys(ldns_rr_list* rrset_trustedkeys, char* domain) {
 }
 
 int
-verify_rr(ldns_rr_list* rrset, ldns_rr_list* rrsig, char* domain) {
+verify_rr(ldns_rr_list* rrset, ldns_rr_list* rrsig, char* domain,
+		  ldns_rr_type rtype) {
 	printf(
 		   "\n-------------------------\n"
 		   "Verifying Resource Record\n"
@@ -295,8 +296,25 @@ verify_rr(ldns_rr_list* rrset, ldns_rr_list* rrsig, char* domain) {
 		printf("No resource record signature; DNSSEC enabled?\n");
 		return LDNS_STATUS_CRYPTO_NO_RRSIG;
 	}
-	if (verbosity >= 1)
-		printf("RRSIGs to validate: %d\n", ldns_rr_list_rr_count(rrsig));
+	if (verbosity >= 1) {
+		char* rtype_str;
+		if (rtype == LDNS_RR_TYPE_A)
+			rtype_str = "A";
+		else if (rtype == LDNS_RR_TYPE_NS)
+			rtype_str = "NS";
+		else if (rtype == LDNS_RR_TYPE_CNAME)
+			rtype_str = "CNAME";
+		else if (rtype == LDNS_RR_TYPE_SOA)
+			rtype_str = "SOA";
+		else if (rtype == LDNS_RR_TYPE_DS)
+			rtype_str = "DS";
+		else if (rtype == LDNS_RR_TYPE_DNSKEY)
+			rtype_str = "DNSKEY";
+		else
+			rtype_str = "UNKNOWN";
+		printf("RRSIGs of type %s to validate: %d\n", rtype_str,
+			   ldns_rr_list_rr_count(rrsig));
+	}
 
 	char* zsk;
 	char* ksk;

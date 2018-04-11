@@ -28,6 +28,7 @@ int
 populate_trustedkeys(ldns_rr_list* rrset_trustedkeys, char* domain);
 
 int
-verify_rr(ldns_rr_list* rrset, ldns_rr_list* rrsig, char* domain);
+verify_rr(ldns_rr_list* rrset, ldns_rr_list* rrsig, char* domain,
+		  ldns_rr_type rtype);
 
 #endif
