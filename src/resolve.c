@@ -181,7 +181,7 @@ verify_trust(ldns_dnssec_data_chain** chain, ldns_dnssec_trust_tree** tree,
 	if (!(*tree)) {
 		fprintf(stderr, "Couldn't create DNSSEC trust tree\n");
 		return LDNS_STATUS_ERR;
-	} else if (verbosity >= 1) {
+	} else if (verbosity >= 0) {
 		printf("DNSSEC Trust tree:\n");
 		ldns_dnssec_trust_tree_print(stdout, *tree, 0, true);
 		printf("\n");
@@ -293,35 +293,88 @@ verify_rr(ldns_rr_list* rrset, ldns_pkt* pkt, char* domain) {
 	ldns_rr_list* rrsig =
 		ldns_pkt_rr_list_by_type(pkt, LDNS_RR_TYPE_RRSIG, LDNS_SECTION_ANSWER);
 	if (!rrsig) {
-		rrsig = ldns_pkt_rr_list_by_type(pkt, LDNS_RR_TYPE_RRSIG,
-										 LDNS_SECTION_AUTHORITY);
-		if (!rrsig) {
-			if (verbosity >= 0)
-				printf("No resource record signature; DNSSEC enabled?\n");
-			return LDNS_STATUS_CRYPTO_NO_RRSIG;
-		}
+		printf("No resource record signature; DNSSEC enabled?\n");
+		return LDNS_STATUS_CRYPTO_NO_RRSIG;
 	}
+	if (verbosity >= 1)
+		printf("Found %d RRSIG\n", ldns_rr_list_rr_count(rrsig));
 
-	char* key;
-	get_key(&key, domain, false);
-	if (key == NULL) {
+	char* zsk;
+	char* ksk;
+	int result = get_key(&zsk, domain, false);
+	if (result != LDNS_STATUS_OK)
+		zsk = NULL;
+	result = get_key(&ksk, domain, true);
+	if (result != LDNS_STATUS_OK)
+		ksk = NULL;
+
+	if (zsk == NULL && ksk == NULL) {
 		if (verbosity >= 0)
 			printf("No keys available in database\n");
 		return LDNS_STATUS_CRYPTO_NO_TRUSTED_DNSKEY;
 	}
 
-	ldns_rr* trustedkey;
-	int result = trustedkey_fromkey(&trustedkey, key+36, domain, false);
-	free(key);
-	if (result != LDNS_STATUS_OK) {
-		return result;
+	ldns_rr* trustedzsk = NULL;
+	if (zsk != NULL) {
+		fprintf(stderr, "Test\n");
+		result = trustedkey_fromkey(&trustedzsk, zsk+36, domain, false);
+		free(zsk);
+		if (result != LDNS_STATUS_OK) {
+			return result;
+		}
+	}
+	ldns_rr* trustedksk = NULL;
+	if (ksk) {
+		result = trustedkey_fromkey(&trustedksk, ksk+36, domain, true);
+		free(ksk);
+		if (result != LDNS_STATUS_OK) {
+			return result;
+		}
 	}
 
-	result = ldns_verify_rrsig(rrset,
-							   ldns_rr_list_rr(rrsig, 0),
-							   trustedkey);
-	if (verbosity >= 0)
-		printf("Verification result of %s: %s\n\n", domain,
-			   ldns_get_errorstr_by_id(result));
+	for(int i = 0; i < ldns_rr_list_rr_count(rrsig); i++) {
+		if (verbosity >= 1)
+			printf("\nTrying to verify with zsk...");
+
+		if (trustedzsk) {
+			result = ldns_verify_rrsig(rrset,
+									   ldns_rr_list_rr(rrsig, i),
+									   trustedzsk);
+			if (verbosity >= 1) {
+				if (result == LDNS_STATUS_OK)
+					printf("success\n");
+				else
+					printf("failure\n");
+			}
+		} else {
+			result = LDNS_STATUS_CRYPTO_NO_TRUSTED_DNSKEY;
+			printf("no zsk\n");
+		}
+
+		// Try KSK if ZSK fails
+		if (result != LDNS_STATUS_OK) {
+			if (verbosity >= 1)
+				printf("Trying to verify with ksk...");
+
+			if (trustedksk) {
+				result = ldns_verify_rrsig(rrset,
+										   ldns_rr_list_rr(rrsig, i),
+										   trustedksk);
+				if (verbosity >= 1) {
+					if (result == LDNS_STATUS_OK)
+						printf("success\n");
+					else
+						printf("failure\n");
+				}
+			} else {
+				result = LDNS_STATUS_CRYPTO_NO_TRUSTED_DNSKEY;
+				printf("no ksk\n");
+			}
+		}
+
+		if (verbosity >= 0)
+			printf("Verification result of RRSIG %d for %s: %s\n\n", i, domain,
+				   ldns_get_errorstr_by_id(result));
+	}
 	return result;
 }
