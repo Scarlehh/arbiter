@@ -32,7 +32,8 @@ def create_cumm(data, alg_name):
         name = alg_name,
         x = data,
         histnorm = "percent",
-        cumulative=dict(enabled=True)
+        cumulative=dict(enabled=True),
+        opacity=0.75
     )
 
 def graph(traces, title, r=None):
@@ -45,6 +46,7 @@ def graph(traces, title, r=None):
         yaxis = dict(
             title = "frequency"
         ),
+        barmode = "overlay"
     )
 
     if r:
