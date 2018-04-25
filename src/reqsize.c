@@ -80,23 +80,19 @@ check_dnssec(char* domain_name, ldns_resolver* res, struct rrsig_info* info) {
 	ldns_pkt* pkt;
 	query(&pkt, res, domain, RR);
 	ldns_rr_list* rrset =
-		ldns_pkt_rr_list_by_type(pkt, LDNS_RR_TYPE_RRSIG, LDNS_SECTION_ANSWER);
+		ldns_pkt_rr_list_by_type(pkt, RR, LDNS_SECTION_ANSWER);
 	if (!rrset || !ldns_rr_list_rr_count(rrset))
 		return 0;
 
 	ldns_rr_list* rrsig =
 		ldns_pkt_rr_list_by_type(pkt, LDNS_RR_TYPE_RRSIG, LDNS_SECTION_ANSWER);
 	if (!rrsig) {
-		rrset = ldns_pkt_rr_list_by_type(pkt, LDNS_RR_TYPE_RRSIG,
-										 LDNS_SECTION_AUTHORITY);
-		if (!rrsig) {
-			ldns_pkt_free(pkt);
-			ldns_rdf_deep_free(domain);
-			return 0;
-		}
+		ldns_pkt_free(pkt);
+		ldns_rdf_deep_free(domain);
+		return 0;
 	}
 	info->bytes = ldns_pkt_size(pkt);
-	info->algorithm = ldns_rdf2native_int8(ldns_rr_rdf(ldns_rr_set_pop_rr(rrset),1));
+	info->algorithm = ldns_rdf2native_int8(ldns_rr_rdf(ldns_rr_set_pop_rr(rrsig),1));
 
 	ldns_rr_list_deep_free(rrset);
 	ldns_pkt_free(pkt);
