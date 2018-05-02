@@ -1,6 +1,11 @@
 # Arbiter
 This is a recursive resolver aiming to perform DNSSEC validation as according to the protocol specified in my thesis, "Blockchain Backed DNSSEC".
 
+## Dependencies
+- ldns
+- mysql
+- openssl
+
 ## Resolver
 The project is built as follows:
 
